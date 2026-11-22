@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1b1f3a">
+<title>Pokédex Idle Offline</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="icon.png">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div id="zoneName">—</div>
+    <div id="money"><img src="assets/ui/kit-1101/icons/star.png" alt="" class="ico"> <span id="moneyVal">₽0</span></div>
+  </header>
+
+  <main id="screens">
+    <!-- CAZAR -->
+    <section id="scr-hunt" class="screen active">
+      <div id="arena">
+        <div class="side foe">
+          <div class="hpbox"><div class="nm" id="foeName">—</div><div class="bar"><i id="foeHp"></i></div><div class="lv" id="foeLv"></div></div>
+          <img id="foeImg" class="mon front" alt="">
+        </div>
+        <div class="side me">
+          <img id="meImg" class="mon back" alt="">
+          <div class="hpbox"><div class="nm" id="meName">—</div><div class="bar"><i id="meHp"></i></div><div class="lv" id="meLv"></div><div class="xpbar"><i id="meXp"></i></div></div>
+        </div>
+        <div id="ballFx"></div>
+      </div>
+      <div id="msg">Elige una zona y pulsa «Cazar».</div>
+      <div id="huntCtl">
+        <button id="btnHunt" class="big">▶ Cazar</button>
+        <button id="btnHeal" class="big alt">✚ Centro Pokémon</button>
+      </div>
+      <div id="huntOpts">
+        <label>Pokébola <select id="selBall"></select></label>
+        <label>Capturar <select id="selPolicy">
+          <option value="new">Solo nuevos</option>
+          <option value="all">Todos</option>
+          <option value="shiny">Solo shiny</option>
+          <option value="none">Nunca</option>
+        </select></label>
+        <label class="chk"><input type="checkbox" id="chkPotion"> Pociones automáticas</label>
+      </div>
+      <div id="boosts"></div>
+      <ul id="log"></ul>
+    </section>
+
+    <section id="scr-team" class="screen"></section>
+    <section id="scr-map" class="screen"></section>
+    <section id="scr-dex" class="screen"></section>
+    <section id="scr-bag" class="screen"></section>
+    <section id="scr-more" class="screen"></section>
+  </main>
+
+  <nav id="tabs">
+    <button data-s="hunt" class="on">Cazar</button>
+    <button data-s="team">Equipo</button>
+    <button data-s="map">Mapa</button>
+    <button data-s="dex">Pokédex</button>
+    <button data-s="bag">Tienda</button>
+    <button data-s="more">Más</button>
+  </nav>
+
+  <div id="sheet" class="hidden"><div id="sheetBox"></div></div>
+  <div id="toast"></div>
+</div>
+<script src="data.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

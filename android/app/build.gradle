@@ -1,0 +1,39 @@
+plugins { id 'com.android.application' }
+
+def buildNumber = (project.findProperty('buildNumber') ?: '1') as int
+def gameVersion = (project.findProperty('gameVersion') ?: '0.0') as String
+
+android {
+    namespace 'com.pokedexidle.offline'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.pokedexidle.offline'
+        minSdk 24
+        targetSdk 34
+        versionCode buildNumber
+        versionName "${gameVersion} (build ${buildNumber})"
+    }
+    signingConfigs {
+        // Firma fija: cada versión se instala encima de la anterior sin perder la partida
+        fija {
+            storeFile file('../release.keystore')
+            storePassword 'pokedexidle'
+            keyAlias 'pokedexidle'
+            keyPassword 'pokedexidle'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.fija
+        }
+        debug { signingConfig signingConfigs.fija }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    // El juego (carpeta game/ del repo) se copia aquí antes de compilar
+    sourceSets { main { assets.srcDirs = ['build/juego'] } }
+    aaptOptions { noCompress 'gif', 'png' }
+}

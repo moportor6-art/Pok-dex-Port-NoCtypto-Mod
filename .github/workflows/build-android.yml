@@ -1,0 +1,93 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # para publicar cada versión (la busca el actualizador de la app)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      # 1) Revisar que el juego no tenga errores de sintaxis
+      - name: Revisar el juego
+        run: |
+          node --check game/game.js
+          node --check game/data.js
+
+      # 2) Huella nativa (solo lo que obliga a reinstalar la APK)
+      - name: Huella nativa y BuildInfo
+        run: |
+          N=$(python3 tools/native_hash.py android)
+          echo "Huella nativa: $N"
+          echo "NATIVE=$N" >> "$GITHUB_ENV"
+          cat > android/app/src/main/java/com/pokedexidle/offline/BuildInfo.java <<JAVA
+          package com.pokedexidle.offline;
+          final class BuildInfo {
+              static final int BUILD = ${{ github.run_number }};
+              static final String NATIVE = "$N";
+          }
+          JAVA
+
+      # 3) Copiar el juego dentro de la APK y compilar
+      - name: Compilar APK
+        run: |
+          rm -rf android/app/build/juego && mkdir -p android/app/build/juego
+          cp -r game android/app/build/juego/www
+          cd android
+          gradle assembleRelease --no-daemon -PbuildNumber=${{ github.run_number }} -PgameVersion=$(cat ../VERSION)
+          mkdir -p ../build
+          APK="PokedexIdleOffline-v$(cat ../VERSION)-build-${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "../build/$APK"
+          echo "APK=$APK" >> "$GITHUB_ENV"
+
+      # 4) Parche del juego para el actualizador
+      - name: Parche del juego (patch.zip)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/files_json.py game build/files_actual.json
+          BASE=$(python3 tools/find_base.py "$NATIVE" /tmp/base)
+          echo "Build base con la misma parte nativa: $BASE"
+          EXTRA=""
+          if [ "$BASE" != "0" ] && [ -f /tmp/base/files.json ]; then
+            N=$(python3 tools/make_patch.py game /tmp/base/files.json build/files_actual.json build/patch.zip)
+            echo "Archivos en el parche: $N"
+            EXTRA="--patch build/patch.zip $BASE"
+          else
+            cp build/files_actual.json build/files.json   # esta APK es la nueva base
+          fi
+          python3 tools/manifest.py ${{ github.run_number }} "$NATIVE" "build/$APK" build/contenido.json $EXTRA
+          git log -1 --pretty=%B | grep -vE '^(Co-Authored-By|Claude-Session):' > build/notas.md
+          ls -la build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokedexIdleOffline-apk
+          path: build/*.apk
+
+      # 5) Cada compilación se publica como versión: la app la encuentra y se actualiza sola
+      - name: Publicar versión
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          FILES="build/$APK build/contenido.json"
+          [ -f build/patch.zip ] && FILES="$FILES build/patch.zip"
+          [ -f build/files.json ] && FILES="$FILES build/files.json"
+          gh release create "$TAG" $FILES --title "Pokédex Idle Offline v$(cat VERSION) · build ${{ github.run_number }}" \
+            --notes-file build/notas.md --target "${{ github.sha }}" --latest
