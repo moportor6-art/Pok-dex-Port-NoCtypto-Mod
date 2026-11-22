@@ -21,6 +21,20 @@ moves = {}
 for m in d["moves"]:
     moves[m["id"]] = [m["name"], m["type"], m["category"], m["power"] or 0, m["accuracy"] or 0, m["pp"], m["priority"]]
 
+# --- Movimientos que no trae el catálogo (Gen 3): de PokéAPI ---
+DMG = {1: "status", 2: "physical", 3: "special"}
+TYPES_ID = {i(r["id"]): r["identifier"] for r in rows("types")}
+move_name_en = {i(r["move_id"]): r["name"] for r in rows("move_names") if r["local_language_id"] == "9"}
+for r in rows("moves"):
+    num = i(r["id"])
+    if num > 354:
+        continue
+    mid = r["identifier"].replace("-", "_")
+    if mid in moves:
+        continue
+    moves[mid] = [move_name_en.get(num, mid.replace("_", " ").title()), TYPES_ID[i(r["type_id"])], DMG[i(r["damage_class_id"])],
+                  i(r["power"], 0), i(r["accuracy"], 0), i(r["pp"], 10), i(r["priority"], 0)]
+
 # --- Efectos de movimientos (estados, cambios de stats, drenar, curar) ---
 moves_by_ident = {r["identifier"].replace("-", "_"): r for r in rows("moves")}
 meta = {i(r["move_id"]): r for r in rows("move_meta")}
@@ -78,7 +92,7 @@ for r in rows("pokemon_moves"):
     if r["pokemon_move_method_id"] != "1":
         continue
     pid = i(r["pokemon_id"])
-    if pid > 251:
+    if pid > 386:
         continue
     vg = i(r["version_group_id"])
     if vg not in VG_PREF:
@@ -91,7 +105,7 @@ for r in rows("pokemon_moves"):
 evo = collections.defaultdict(list)
 for r in rows("pokemon_evolution"):
     to = sp_by_id.get(i(r["evolved_species_id"]))
-    if not to or to not in species_csv or i(species_csv[to]["id"]) > 251:
+    if not to or to not in species_csv or i(species_csv[to]["id"]) > 386:
         continue
     frm = species_csv[to]["evolves_from_species_id"]
     if not frm:
@@ -141,10 +155,41 @@ for s in d["species"]:
         "leg": 1 if c["is_legendary"] == "1" or c["is_mythical"] == "1" else 0,
     }
 
+# --- Especies de la Gen 3 (252-386): de PokéAPI ---
+name_en = {i(r["pokemon_species_id"]): r["name"] for r in rows("pokemon_species_names") if r["local_language_id"] == "9"}
+ptypes = collections.defaultdict(list)
+for r in rows("pokemon_types"):
+    ptypes[i(r["pokemon_id"])].append((i(r["slot"]), TYPES_ID[i(r["type_id"])]))
+pstats = collections.defaultdict(dict)
+for r in rows("pokemon_stats"):
+    pstats[i(r["pokemon_id"])][i(r["stat_id"])] = i(r["base_stat"])
+for pid in range(252, 387):
+    sid = sp_by_id[pid]
+    c = species_csv[sid]; p = poke_csv[pid]
+    ls = []
+    for vg in [6, 5, 7]:
+        if learn[pid].get(vg):
+            ls = sorted(set(learn[pid][vg]))
+            break
+    st = pstats[pid]
+    species[sid] = {
+        "n": name_en.get(pid, sid.title()), "d": pid, "t": [t for _, t in sorted(ptypes[pid])],
+        "b": [st[1], st[2], st[3], st[4], st[5], st[6]],
+        "c": i(c["capture_rate"]), "x": i(p["base_experience"], 60), "g": i(c["growth_rate_id"]),
+        "L": ls, "e": evo.get(sid, []),
+        "leg": 1 if c["is_legendary"] == "1" or c["is_mythical"] == "1" else 0,
+    }
+# Gen 1-2 que evolucionan a Gen 3 (p. ej. Azurill no, pero sí Gloom→Bellossom ya estaba): volver a asignar evoluciones
+for sid, v in species.items():
+    v["e"] = evo.get(sid, [])
+
 # --- Encuentros por zona ---
 locs = {i(r["id"]): r["identifier"] for r in rows("locations")}
 areas = {i(r["id"]): i(r["location_id"]) for r in rows("location_areas")}
 slots = {i(r["id"]): i(r["rarity"]) for r in rows("encounter_slots")}
+# fuera regalos, huevos, estáticos, legendarios errantes e intercambios: solo lo que sale en la hierba, agua, rocas o árboles
+SKIP_METHOD = {18, 19, 20, 21, 28, 29, 30, 36}
+slot_method = {i(r["id"]): i(r["encounter_method_id"]) for r in rows("encounter_slots")}
 REGION_VERS = {"kanto": [1, 2, 3, 6, 10, 11], "johto": [4, 5, 6], "hoenn": [7, 8, 9]}
 enc_by_loc = collections.defaultdict(lambda: collections.defaultdict(lambda: [0, 999, 0]))
 enc_rows = rows("encounters")
@@ -181,7 +226,7 @@ for z in d["zones"]:
         wanted[(zone_loc_id[z["id"]], z["region"])] = None
 for e in enc_rows:
     pid = i(e["pokemon_id"])
-    if pid not in valid_ids:
+    if pid not in valid_ids or slot_method.get(i(e["encounter_slot_id"])) in SKIP_METHOD:
         continue
     loc = areas[i(e["location_area_id"])]
     v = i(e["version_id"])
