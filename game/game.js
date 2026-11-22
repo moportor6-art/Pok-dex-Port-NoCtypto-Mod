@@ -1,7 +1,7 @@
 /* Pokédex Idle Offline — resurrección fan. Todo se calcula y se guarda en el dispositivo. */
 'use strict';
 const D = window.GAME_DATA;
-const VERSION = '0.2';
+const VERSION = '0.3';
 const SAVE_KEY = 'pdxidle_offline_save';
 const OFFLINE_CAP_MS = 8 * 3600e3;
 const BATTLE_SEC = 8;          // duración media de un encuentro (para el progreso fuera de línea)
@@ -12,10 +12,27 @@ const TYPE_COLOR = {normal:'#9a9a78',fire:'#e8742c',water:'#4f86e8',grass:'#5cb8
 const NAT_ES = ['Fuerte','Huraña','Audaz','Firme','Pícara','Osada','Dócil','Plácida','Agitada','Floja','Miedosa','Activa','Seria','Alegre','Ingenua','Modesta','Afable','Mansa','Tímida','Alocada','Serena','Amable','Grosera','Cauta','Rara'];
 // orden estándar de naturalezas: sube/baja sobre [Atq, Def, Vel, AtE, DfE]
 const NAT_STAT = [1, 2, 5, 3, 4];
-const ITEM_ES = {poke_ball:'Poké Ball',great_ball:'Super Ball',ultra_ball:'Ultra Ball',potion:'Poción',super_potion:'Superpoción',hyper_potion:'Hiperpoción',revive:'Revivir',repel:'Repelente',lure_incense:'Incienso Cebo',lucky_egg:'Huevo Suerte',link_cable:'Cable Link',fire_stone:'Piedra Fuego',water_stone:'Piedra Agua',thunder_stone:'Piedra Trueno',leaf_stone:'Piedra Hoja',moon_stone:'Piedra Lunar',sun_stone:'Piedra Solar',kings_rock:'Roca del Rey',metal_coat:'Revestimiento Metálico',dragon_scale:'Escama Dragón',up_grade:'Mejora'};
+const ITEM_ES = {poke_ball:'Poké Ball',great_ball:'Super Ball',ultra_ball:'Ultra Ball',potion:'Poción',super_potion:'Superpoción',hyper_potion:'Hiperpoción',revive:'Revivir',repel:'Repelente',lure_incense:'Incienso Cebo',lucky_egg:'Huevo Suerte',link_cable:'Cable Link',fire_stone:'Piedra Fuego',water_stone:'Piedra Agua',thunder_stone:'Piedra Trueno',leaf_stone:'Piedra Hoja',moon_stone:'Piedra Lunar',sun_stone:'Piedra Solar',kings_rock:'Roca del Rey',metal_coat:'Revestimiento Metálico',dragon_scale:'Escama Dragón',up_grade:'Mejora',
+  shiny_incense:'Incienso Shiny',leftovers:'Restos',choice_band:'Cinta Elección',choice_specs:'Gafas Elección',choice_scarf:'Pañuelo Elección',focus_sash:'Banda Focus',
+  life_orb:'Vidasfera',expert_belt:'Cinta Experto',rocky_helmet:'Casco Dentado',scope_lens:'Periscopio',shell_bell:'Campana Concha',hard_stone:'Piedra Dura',
+  white_herb:'Hierba Blanca',sitrus_berry:'Baya Zidra',oran_berry:'Baya Aranja',lum_berry:'Baya Ziuela',cheri_berry:'Baya Zreza',chesto_berry:'Baya Atania',
+  pecha_berry:'Baya Meloc',rawst_berry:'Baya Safre',aspear_berry:'Baya Perasi',persim_berry:'Baya Caquic',deep_sea_tooth:'Diente Marino',deep_sea_scale:'Escama Marina',everstone:'Piedra Eterna'};
+const PRICE = {shiny_incense: 6000, leftovers: 7000, choice_band: 8000, choice_specs: 8000, choice_scarf: 8000, focus_sash: 6000, life_orb: 8000,
+  expert_belt: 6000, rocky_helmet: 6000, scope_lens: 5000, shell_bell: 5000, hard_stone: 3000, white_herb: 3000, sitrus_berry: 600, oran_berry: 200,
+  lum_berry: 1200, cheri_berry: 300, chesto_berry: 300, pecha_berry: 300, rawst_berry: 300, aspear_berry: 300, persim_berry: 300};
+const SHOP_SECTIONS = [
+  ['Pokébolas y curación', ['poke_ball','great_ball','ultra_ball','potion','super_potion','hyper_potion','revive']],
+  ['Inciensos y potenciadores', ['repel','lure_incense','lucky_egg','shiny_incense']],
+  ['Evolución', ['fire_stone','water_stone','thunder_stone','leaf_stone','moon_stone','sun_stone','kings_rock','metal_coat','dragon_scale','up_grade','deep_sea_tooth','deep_sea_scale','link_cable']],
+  ['Objetos para equipar', ['leftovers','choice_band','choice_specs','choice_scarf','focus_sash','life_orb','expert_belt','rocky_helmet','scope_lens','shell_bell','hard_stone','white_herb']],
+  ['Bayas (se equipan; se recuperan tras cada combate)', ['oran_berry','sitrus_berry','lum_berry','cheri_berry','chesto_berry','pecha_berry','rawst_berry','aspear_berry','persim_berry']],
+];
+const itemPrice = k => PRICE[k] || (D.items[k] || {}).p || 2100;
 const POTION = {potion: 20, super_potion: 50, hyper_potion: 200};
-const BOOST_ITEMS = {lure_incense: {key: 'lure', ms: 30 * 60e3, txt: 'Encuentros más rápidos'}, repel: {key: 'repel', ms: 30 * 60e3, txt: 'Solo salvajes fuertes'}, lucky_egg: {key: 'egg', ms: 30 * 60e3, txt: 'Experiencia x2'}};
-const SHOP_LIST = ['poke_ball','great_ball','ultra_ball','potion','super_potion','hyper_potion','revive','repel','lure_incense','lucky_egg','fire_stone','water_stone','thunder_stone','leaf_stone','moon_stone','sun_stone','kings_rock','metal_coat','dragon_scale','up_grade','link_cable'];
+const BOOST_ITEMS = {lure_incense: {key: 'lure', ms: 30 * 60e3, txt: 'Encuentros más rápidos'}, repel: {key: 'repel', ms: 30 * 60e3, txt: 'Solo salvajes fuertes'}, lucky_egg: {key: 'egg', ms: 30 * 60e3, txt: 'Experiencia x2'}, shiny_incense: {key: 'shiny', ms: 60 * 60e3, txt: 'Doble probabilidad de shiny'}};
+const SHOP_LIST = ['poke_ball','great_ball','ultra_ball','potion','super_potion','hyper_potion','revive','repel','lure_incense','lucky_egg','fire_stone','water_stone','thunder_stone','leaf_stone','moon_stone','sun_stone','kings_rock','metal_coat','dragon_scale','up_grade','link_cable','deep_sea_tooth','deep_sea_scale','shiny_incense',
+  'oran_berry','sitrus_berry','lum_berry','cheri_berry','chesto_berry','pecha_berry','rawst_berry','aspear_berry','persim_berry',
+  'leftovers','choice_band','choice_specs','choice_scarf','focus_sash','life_orb','expert_belt','rocky_helmet','scope_lens','shell_bell','hard_stone','white_herb'];
 
 // Gimnasios (equipos canónicos de Rojo/Azul y Oro/Plata)
 const GYMS = {
@@ -35,6 +52,15 @@ const GYMS = {
   olivine_city:{l:'Yasmina',b:'Medalla Mineral',t:[['magnemite',30],['magnemite',30],['steelix',35]]},
   mahogany_town:{l:'Fredo',b:'Medalla Glaciar',t:[['seel',27],['dewgong',29],['piloswine',31]]},
   blackthorn_city:{l:'Débora',b:'Medalla Dragón',t:[['dragonair',37],['dragonair',37],['dragonair',37],['kingdra',40]]},
+  // Hoenn: los líderes originales usan Pokémon de 3.ª generación; aquí llevan equipos alternativos del mismo tipo con Pokémon de Kanto y Johto
+  rustboro_city:{l:'Petra',b:'Medalla Piedra',alt:1,t:[['geodude',12],['geodude',12],['sudowoodo',15]]},
+  dewford_town:{l:'Marcial',b:'Medalla Puño',alt:1,t:[['machop',16],['mankey',17],['heracross',19]]},
+  mauville_city:{l:'Erico',b:'Medalla Dínamo',alt:1,t:[['voltorb',20],['electrode',22],['magneton',22],['ampharos',24]]},
+  lavaridge_town:{l:'Candela',b:'Medalla Calor',alt:1,t:[['slugma',26],['houndour',26],['magcargo',28],['magmar',29]]},
+  petalburg_city:{l:'Norman',b:'Medalla Equilibrio',alt:1,t:[['tauros',28],['miltank',29],['kangaskhan',30],['ursaring',31]]},
+  fortree_city:{l:'Alana',b:'Medalla Pluma',alt:1,t:[['noctowl',30],['xatu',31],['skarmory',32],['pidgeot',33]]},
+  mossdeep_city:{l:'Vito y Leti',b:'Medalla Mente',alt:1,t:[['xatu',41],['slowking',41],['girafarig',42],['espeon',42]]},
+  sootopolis_city:{l:'Plubio',b:'Medalla Lluvia',alt:1,t:[['quagsire',44],['lapras',45],['starmie',45],['kingdra',46],['gyarados',48]]},
 };
 
 // Liga Pokémon en la Meseta Añil: 4 del Alto Mando + Campeón (equipos de Rojo/Azul y Oro/Plata)
@@ -54,6 +80,13 @@ const LEAGUES = {
     {l: 'Campeón Lance', champ: 1, t: [['gyarados', 44], ['dragonite', 47], ['dragonite', 47], ['aerodactyl', 46], ['charizard', 46], ['dragonite', 50]]},
   ]},
 };
+LEAGUES.hoenn = {n: 'Liga Hoenn', need: 'hoenn', prize: 15000, zone: 'ever_grande_city', alt: 1, f: [
+  {l: 'Sixto', t: [['murkrow', 47], ['sneasel', 47], ['houndoom', 48], ['umbreon', 49], ['tyranitar', 51]]},
+  {l: 'Fátima', t: [['misdreavus', 48], ['haunter', 48], ['gengar', 49], ['misdreavus', 50], ['gengar', 51]]},
+  {l: 'Nívea', t: [['piloswine', 50], ['dewgong', 50], ['jynx', 50], ['cloyster', 51], ['lapras', 52]]},
+  {l: 'Dracón', t: [['dragonair', 51], ['gyarados', 51], ['kingdra', 52], ['charizard', 53], ['dragonite', 53]]},
+  {l: 'Campeón Máximo', champ: 1, t: [['skarmory', 56], ['forretress', 56], ['magneton', 56], ['steelix', 57], ['scizor', 57], ['tyranitar', 58]]},
+]};
 const RIVAL_ACE = {bulbasaur: 'charizard', charmander: 'blastoise', squirtle: 'venusaur'};
 
 // ---------- utilidades ----------
@@ -108,7 +141,7 @@ let S = null;
 function newState() {
   return {v: 1, money: 3000, items: {poke_ball: 5, potion: 3}, team: [], box: [], seen: {}, caught: {}, zone: 'pallet_town',
     visited: {pallet_town: 1}, badges: {}, hunting: false, lastSeen: Date.now(), boosts: {}, ball: 'poke_ball', policy: 'new',
-    autoPotion: true, cup: {day: '', round: 0, done: false, trophies: 0}, log: [], stats: {battles: 0, caught: 0, shinies: 0}, uid: 1, started: false};
+    autoPotion: true, audio: {music: true, sfx: true, vol: 0.6}, avatar: 0, cup: {day: '', round: 0, done: false, trophies: 0}, log: [], stats: {battles: 0, caught: 0, shinies: 0}, uid: 1, started: false};
 }
 function save() {
   if (!S) return;
@@ -127,15 +160,41 @@ const STATUS_ES = {par: 'paralizado', slp: 'dormido', frz: 'congelado', brn: 'qu
 const STATUS_TAG = {par: 'PAR', slp: 'DOR', frz: 'CON', brn: 'QUE', psn: 'ENV', tox: 'ENV'};
 const STAGE_ES = {2: 'Ataque', 3: 'Defensa', 4: 'At. Esp.', 5: 'Def. Esp.', 6: 'Velocidad', 7: 'Precisión', 8: 'Evasión'};
 const IMMUNE = {par: ['electric'], brn: ['fire'], psn: ['poison', 'steel'], tox: ['poison', 'steel'], frz: ['ice']};
+// Ataques especiales
+const CHARGE = {solar_beam: 'absorbe luz', razor_wind: 'crea un torbellino', skull_bash: 'baja la cabeza', sky_attack: 'brilla intensamente', fly: 'vuela muy alto', dig: 'se esconde bajo tierra', dive: 'se sumerge', bounce: 'salta muy alto'};
+const INVUL = new Set(['fly', 'dig', 'dive', 'bounce']);
+const RECHARGE = new Set(['hyper_beam', 'giga_impact', 'blast_burn', 'hydro_cannon', 'frenzy_plant', 'rock_wrecker', 'roar_of_time']);
+const TRAP = new Set(['wrap', 'bind', 'fire_spin', 'whirlpool', 'clamp', 'sand_tomb', 'magma_storm', 'infestation']);
+const OHKO = new Set(['fissure', 'horn_drill', 'guillotine', 'sheer_cold']);
+const SELFKO = new Set(['self_destruct', 'explosion']);
+const PROTECT = new Set(['protect', 'detect']);
+// Objetos equipables (las bayas y la Banda Focus se recuperan después de cada combate)
+const HELD = {
+  leftovers: 'Recupera 1/16 de PS cada turno.', choice_band: 'Ataque físico x1.5.', choice_specs: 'Ataque especial x1.5.',
+  choice_scarf: 'Velocidad x1.5.', focus_sash: 'Con PS al máximo, aguanta un golpe que lo derrotaría (1 vez por combate).',
+  life_orb: 'Daño x1.3, pero pierde 1/10 de PS al atacar.', expert_belt: 'Los golpes muy eficaces hacen x1.2.',
+  rocky_helmet: 'Quien lo golpea con ataque físico pierde 1/6 de PS.', scope_lens: 'Más golpes críticos.',
+  shell_bell: 'Recupera 1/8 del daño que hace.', kings_rock: '10% de hacer retroceder al golpear.',
+  hard_stone: 'Ataques de tipo Roca x1.2.', white_herb: 'Deshace las bajadas de stats (1 vez por combate).',
+  sitrus_berry: 'Con menos de 1/2 de PS, recupera 1/4 (1 vez por combate).', oran_berry: 'Con menos de 1/2 de PS, recupera 10 PS (1 vez por combate).',
+  lum_berry: 'Cura cualquier estado o confusión (1 vez por combate).', cheri_berry: 'Cura la parálisis (1 vez por combate).',
+  chesto_berry: 'Cura el sueño (1 vez por combate).', pecha_berry: 'Cura el veneno (1 vez por combate).',
+  rawst_berry: 'Cura la quemadura (1 vez por combate).', aspear_berry: 'Cura la congelación (1 vez por combate).',
+  persim_berry: 'Cura la confusión (1 vez por combate).',
+};
+const BERRY_CURE = {cheri_berry: ['par'], chesto_berry: ['slp'], pecha_berry: ['psn', 'tox'], rawst_berry: ['brn'], aspear_berry: ['frz'], lum_berry: ['par', 'slp', 'psn', 'tox', 'brn', 'frz', 'cnf'], persim_berry: ['cnf']};
 function eff(mtype, deftypes) { let f = 1; for (const t of deftypes) { const r = D.chart[mtype]; if (r && r[t] !== undefined) f *= r[t]; } return f; }
 function vol(m) { return m._b || (m._b = {stg: [0, 0, 0, 0, 0, 0, 0, 0, 0], cnf: 0, slp: 0, tox: 0, fl: 0}); }
 function endBattle(list) { for (const m of list) { delete m._b; m.st = null; } }
 function stageMul(s) { return s >= 0 ? (2 + s) / 2 : 2 / (2 - s); }
-// stats efectivos en combate: etapas + parálisis (velocidad) + quemadura (ataque)
+// stats efectivos en combate: etapas + parálisis (velocidad) + quemadura (ataque) + objetos
 function bstat(m, i) {
   let v = calcStats(m)[i] * stageMul(vol(m).stg[i + 1] || 0);
   if (i === 5 && m.st === 'par') v *= 0.5;
   if (i === 1 && m.st === 'brn') v *= 0.5;
+  if (i === 1 && m.item === 'choice_band') v *= 1.5;
+  if (i === 3 && m.item === 'choice_specs') v *= 1.5;
+  if (i === 5 && m.item === 'choice_scarf') v *= 1.5;
   return v;
 }
 function moveData(id) { return D.moves[id] || ['Forcejeo', 'normal', 'physical', 50, 100, 1, 0]; }
@@ -144,53 +203,85 @@ function canAfflict(def, a) {
   if (a === 'cnf') return !vol(def).cnf;
   return !def.st && !(IMMUNE[a] || []).some(t => sp(def.s).t.includes(t));
 }
-function dmgScore(att, def, id) {
-  const mv = moveData(id); if (mv[3] <= 0) return 0;
+function fixedDamage(att, def, id) {
+  if (id === 'seismic_toss' || id === 'night_shade') return att.lv;
+  if (id === 'dragon_rage') return 40;
+  if (id === 'sonic_boom') return 20;
+  if (id === 'super_fang') return Math.max(1, Math.floor(def.hp / 2));
+  if (id === 'psywave') return Math.max(1, Math.floor(att.lv * (0.5 + Math.random())));
+  return 0;
+}
+// Daño esperado en PS (para que la IA compare)
+function estDamage(att, def, id) {
+  const mv = moveData(id), e = eff(mv[1], sp(def.s).t);
+  if (e === 0) return 0;
+  const acc = (mv[4] || 100) / 100;
+  const fx = fixedDamage(att, def, id);
+  if (fx) return fx * acc;
+  if (OHKO.has(id)) return att.lv >= def.lv ? def.hp * (30 + att.lv - def.lv) / 100 : 0;
+  if (mv[3] <= 0) return 0;
   const phys = mv[2] !== 'special';
-  const ratio = phys ? bstat(att, 1) / bstat(def, 2) : bstat(att, 3) / bstat(def, 4);
+  const A = bstat(att, phys ? 1 : 3), Df = bstat(def, phys ? 2 : 4);
   const hits = mv[7] && mv[7].h ? (mv[7].h[0] + mv[7].h[1]) / 2 : 1;
-  return mv[3] * hits * ratio * (sp(att.s).t.includes(mv[1]) ? 1.5 : 1) * eff(mv[1], sp(def.s).t) * ((mv[4] || 100) / 100);
+  let d = (Math.floor(2 * att.lv / 5 + 2) * mv[3] * A / Df / 50 + 2) * 0.925 * hits * e * acc;
+  if (sp(att.s).t.includes(mv[1])) d *= 1.5;
+  if (CHARGE[id] && id !== 'solar_beam') d *= 0.55;
+  if (id === 'solar_beam') d *= 0.5;
+  if (RECHARGE.has(id)) d *= 0.6;
+  if (TRAP.has(id)) d += maxHp(def) / 8 * 2;
+  if (SELFKO.has(id)) d = att.hp / maxHp(att) < 0.25 ? d : 0;
+  return d;
 }
 // La IA elige: daño esperado, pero también estados, mejoras y curación cuando conviene
 function chooseMove(att, def, opts = {}) {
+  const b = vol(att);
+  if (b.charge) return b.charge;
   let best = 'struggle', bv = -1, top = 0;
-  for (const id of att.moves) top = Math.max(top, dmgScore(att, def, id));
+  for (const id of att.moves) top = Math.max(top, estDamage(att, def, id));
+  top = Math.max(top, 1);
+  const myHp = att.hp / maxHp(att), db = vol(def);
   for (const id of att.moves) {
     const mv = D.moves[id]; if (!mv) continue;
     const fx = mv[7] || {};
-    let v = dmgScore(att, def, id);
-    if (mv[3] <= 0) {
-      const myHp = att.hp / maxHp(att);
-      if (fx.a && canAfflict(def, fx.a) && eff(mv[1], sp(def.s).t) > 0) v = top * (opts.catching && (fx.a === 'slp' || fx.a === 'par') ? 3 : fx.a === 'cnf' ? 0.5 : 0.9);
+    let v = estDamage(att, def, id);
+    if (mv[3] <= 0 && !fixedDamage(att, def, id) && !OHKO.has(id)) {
+      if (PROTECT.has(id)) v = (db.charge && db.charge !== 'solar_beam') || (myHp < 0.3 && def.st && def.st !== 'slp') ? top * 1.2 : 0;
+      else if (id === 'leech_seed') v = !db.seed && !sp(def.s).t.includes('grass') ? top * 0.8 : 0;
+      else if (id === 'yawn') v = canAfflict(def, 'slp') && !db.yawn ? top * (opts.catching ? 2.5 : 0.8) : 0;
+      else if (id === 'rest') v = myHp < 0.35 && att.st !== 'slp' ? top * 1.4 : 0;
+      else if (fx.a && canAfflict(def, fx.a) && eff(mv[1], sp(def.s).t) > 0) v = top * (opts.catching && (fx.a === 'slp' || fx.a === 'par') ? 3 : fx.a === 'cnf' ? 0.5 : 0.9);
       else if (fx.hl && myHp < 0.45) v = top * 1.3;
-      else if (fx.s && fx.self && myHp > 0.7 && fx.s.every(([st, c]) => (vol(att).stg[st] || 0) * Math.sign(c) < 2)) v = top * 0.7;
-      else if (fx.s && !fx.self && fx.s.every(([st, c]) => (vol(def).stg[st] || 0) * Math.sign(c) < 2)) v = top * 0.35;
+      else if (fx.s && fx.self && myHp > 0.7 && fx.s.every(([st, c]) => (b.stg[st] || 0) * Math.sign(c) < 2)) v = top * 0.7;
+      else if (fx.s && !fx.self && fx.s.every(([st, c]) => (db.stg[st] || 0) * Math.sign(c) < 2)) v = top * 0.35;
       else v = 0;
       v *= (mv[4] || 100) / 100;
     } else if (opts.catching && fx.a && canAfflict(def, fx.a)) v *= 1.1;
+    if (opts.catching && (OHKO.has(id) || SELFKO.has(id))) v = 0;
     v *= 0.85 + Math.random() * 0.3;
     if (v > bv) { bv = v; best = id; }
   }
   return bv > 0 ? best : 'struggle';
 }
-// ¿Puede actuar este turno? (sueño, congelación, parálisis, confusión, retroceso)
+// ¿Puede actuar este turno? (recarga, sueño, congelación, parálisis, confusión, retroceso)
 function canAct(m, who, F) {
   const b = vol(m);
+  if (b.recharge) { b.recharge = 0; F.snap(`${who} necesita recuperarse.`); return false; }
   if (b.fl) { b.fl = 0; F.snap(`¡${who} retrocedió!`); return false; }
   if (m.st === 'slp') {
-    if (--b.slp > 0) { F.snap(`${who} está dormido.`); return false; }
+    if (--b.slp > 0) { F.snap(`${who} está dormido.`); b.charge = null; b.invul = 0; return false; }
     m.st = null; F.snap(`¡${who} se despertó!`);
   }
   if (m.st === 'frz') {
-    if (Math.random() < 0.2) { m.st = null; F.snap(`¡${who} se descongeló!`); } else { F.snap(`${who} está congelado.`); return false; }
+    if (Math.random() < 0.2) { m.st = null; F.snap(`¡${who} se descongeló!`); } else { F.snap(`${who} está congelado.`); b.charge = null; b.invul = 0; return false; }
   }
-  if (m.st === 'par' && Math.random() < 0.25) { F.snap(`¡${who} está paralizado y no se puede mover!`); return false; }
+  if (m.st === 'par' && Math.random() < 0.25) { F.snap(`¡${who} está paralizado y no se puede mover!`); b.charge = null; b.invul = 0; return false; }
   if (b.cnf) {
     if (--b.cnf <= 0) { b.cnf = 0; F.snap(`${who} ya no está confuso.`); }
     else if (Math.random() < 0.33) {
       const d = Math.max(1, Math.floor((Math.floor(2 * m.lv / 5 + 2) * 40 * bstat(m, 1) / bstat(m, 2)) / 50 + 2));
       m.hp = Math.max(0, m.hp - d);
-      F.snap(`¡${who} está confuso y se hirió a sí mismo!`, {hit: m === F.me ? 'me' : 'foe'});
+      b.charge = null; b.invul = 0;
+      F.snap(`¡${who} está confuso y se hirió a sí mismo!`, {hit: m === F.me ? 'me' : 'foe', sfx: 'hit'});
       return false;
     }
   }
@@ -198,11 +289,12 @@ function canAct(m, who, F) {
 }
 function applyStatus(def, a, dname, F) {
   if (!canAfflict(def, a)) return false;
-  if (a === 'cnf') { vol(def).cnf = rnd(2, 5); F.snap(`¡${dname} se confundió!`); return true; }
+  if (a === 'cnf') { vol(def).cnf = rnd(2, 5); F.snap(`¡${dname} se confundió!`); checkBerry(def, dname, F); return true; }
   def.st = a;
   if (a === 'slp') vol(def).slp = rnd(2, 4);
   if (a === 'tox') vol(def).tox = 0;
-  F.snap(`¡${dname} fue ${STATUS_ES[a]}!`);
+  F.snap(`¡${dname} fue ${STATUS_ES[a]}!`, {sfx: 'status'});
+  checkBerry(def, dname, F);
   return true;
 }
 function applyStages(m, list, name, F) {
@@ -210,90 +302,185 @@ function applyStages(m, list, name, F) {
     const b = vol(m), old = b.stg[st] || 0, nv = clamp(old + c, -6, 6);
     if (nv === old) { F.snap(`¡El ${STAGE_ES[st] || 'stat'} de ${name} no puede ${c > 0 ? 'subir' : 'bajar'} más!`); continue; }
     b.stg[st] = nv;
-    F.snap(`¡El ${STAGE_ES[st] || 'stat'} de ${name} ${c > 0 ? (c > 1 ? 'subió mucho' : 'subió') : (c < -1 ? 'bajó mucho' : 'bajó')}!`);
+    F.snap(`¡El ${STAGE_ES[st] || 'stat'} de ${name} ${c > 0 ? (c > 1 ? 'subió mucho' : 'subió') : (c < -1 ? 'bajó mucho' : 'bajó')}!`, {sfx: c > 0 ? 'up' : 'down'});
   }
+  if (m.item === 'white_herb' && !vol(m).herb && vol(m).stg.some(x => x < 0)) {
+    vol(m).herb = 1; vol(m).stg = vol(m).stg.map(x => Math.max(0, x));
+    F.snap(`La Hierba Blanca de ${name} anuló la bajada de stats.`);
+  }
+}
+// Bayas: se activan solas (1 vez por combate)
+function checkBerry(m, name, F) {
+  const it = m.item; if (!it || m.hp <= 0) return;
+  const b = vol(m); if (b.berry) return;
+  const cure = BERRY_CURE[it];
+  if (cure) {
+    const has = cure.filter(x => x === 'cnf' ? b.cnf : m.st === x);
+    if (!has.length) return;
+    if (has.includes('cnf')) b.cnf = 0;
+    if (m.st && cure.includes(m.st)) m.st = null;
+    b.berry = 1; F.snap(`${name} comió su ${itemName(it)} y se curó.`);
+    return;
+  }
+  if ((it === 'sitrus_berry' || it === 'oran_berry') && m.hp <= maxHp(m) / 2) {
+    const h = it === 'sitrus_berry' ? Math.floor(maxHp(m) / 4) : 10;
+    m.hp = Math.min(maxHp(m), m.hp + h); b.berry = 1;
+    F.snap(`${name} comió su ${itemName(it)} y recuperó PS.`);
+  }
+}
+function dealDamage(def, dmg, dname, F, opts = {}) {
+  if (opts.spare) dmg = Math.min(dmg, def.hp - 1); // el entrenador debilita sin derrotar
+  if (def.item === 'focus_sash' && def.hp === maxHp(def) && dmg >= def.hp && !vol(def).sash && def.hp > 1) {
+    vol(def).sash = 1; dmg = def.hp - 1;
+    F.snap(`¡${dname} aguantó el golpe gracias a su Banda Focus!`);
+  }
+  def.hp = Math.max(0, def.hp - dmg);
+  return dmg;
 }
 // Ejecuta un movimiento completo con sus efectos
 function useMove(att, def, id, names, side, F, opts = {}) {
   const C = D.combat, mv = moveData(id), fx = mv[7] || {};
   const [an, dn] = names;
-  if (mv[4]) {
-    const accStg = (vol(att).stg[7] || 0) - (vol(def).stg[8] || 0);
-    const acc = mv[4] * (accStg >= 0 ? (3 + accStg) / 3 : 3 / (3 - accStg));
-    if (Math.random() * 100 >= acc) { F.snap(`${an} usó ${mv[0]}, ¡pero falló!`); return; }
+  const b = vol(att), db = vol(def);
+  // ataques de dos turnos: primer turno se prepara
+  if (CHARGE[id] && b.charge !== id) {
+    b.charge = id; b.invul = INVUL.has(id) ? 1 : 0;
+    F.snap(`¡${an} ${CHARGE[id]}!`);
+    return;
   }
-  if (mv[3] <= 0) {
+  const charged = b.charge === id;
+  b.charge = null; b.invul = 0;
+  if (!PROTECT.has(id)) b.protChain = 0;
+  // ataques sobre uno mismo: no los frena la protección ni que el rival esté volando o bajo tierra
+  const selfMove = PROTECT.has(id) || id === 'rest' || (mv[3] <= 0 && !fixedDamage(att, def, id) && !fx.a && ((fx.s && fx.self) || fx.hl));
+  if (!selfMove && db.protect) { F.snap(`${an} usó ${mv[0]}, pero ${dn} se protegió.`); return; }
+  if (!selfMove && db.invul) { F.snap(`${an} usó ${mv[0]}, ¡pero falló!`); return; }
+  if (mv[4] && !OHKO.has(id) && !selfMove) {
+    const accStg = (b.stg[7] || 0) - (db.stg[8] || 0);
+    const acc = mv[4] * (accStg >= 0 ? (3 + accStg) / 3 : 3 / (3 - accStg));
+    if (Math.random() * 100 >= acc) { F.snap(`${an} usó ${mv[0]}, ¡pero falló!`); if (RECHARGE.has(id)) b.recharge = 0; return; }
+  }
+  // ataques de estado especiales
+  if (PROTECT.has(id)) {
+    const ok = Math.random() < Math.pow(0.5, b.protChain || 0);
+    b.protChain = ok ? (b.protChain || 0) + 1 : 0;
+    if (ok) { b.protect = 1; F.snap(`¡${an} se está protegiendo!`); } else F.snap(`${an} usó ${mv[0]}, ¡pero falló!`);
+    return;
+  }
+  if (id === 'leech_seed') {
+    if (db.seed || sp(def.s).t.includes('grass')) { F.snap(`${an} usó ${mv[0]}, ¡pero falló!`); return; }
+    db.seed = 1; F.snap(`¡${dn} fue infectado con Drenadoras!`); return;
+  }
+  if (id === 'yawn') {
+    if (!canAfflict(def, 'slp') || db.yawn) { F.snap(`${an} usó ${mv[0]}, ¡pero falló!`); return; }
+    db.yawn = 2; F.snap(`${an} usó Bostezo. ¡${dn} tiene sueño!`); return;
+  }
+  if (id === 'rest') {
+    if (att.hp === maxHp(att) || att.st === 'slp') { F.snap(`${an} usó Descanso, ¡pero falló!`); return; }
+    att.st = 'slp'; b.slp = 3; att.hp = maxHp(att);
+    F.snap(`¡${an} se durmió y recuperó toda su salud!`, {sfx: 'heal'}); return;
+  }
+  if (OHKO.has(id)) {
+    if (att.lv < def.lv || Math.random() * 100 >= 30 + att.lv - def.lv || eff(mv[1], sp(def.s).t) === 0) { F.snap(`${an} usó ${mv[0]}, ¡pero falló!`); return; }
+    dealDamage(def, def.hp, dn, F, opts);
+    F.snap(`${an} usó ${mv[0]}. ¡Fulminó al rival de un golpe!`, {hit: side, sfx: 'crit'}); return;
+  }
+  const fixed = fixedDamage(att, def, id);
+  if (mv[3] <= 0 && !fixed) {
     F.snap(`${an} usó ${mv[0]}.`);
     let did = false;
     if (fx.a) did = applyStatus(def, fx.a, dn, F) || did;
     if (fx.s) { applyStages(fx.self ? att : def, fx.s, fx.self ? an : dn, F); did = true; }
-    if (fx.hl) { const h = Math.floor(maxHp(att) * fx.hl / 100); att.hp = Math.min(maxHp(att), att.hp + h); F.snap(`${an} recuperó salud.`); did = true; }
+    if (fx.hl) { const h = Math.floor(maxHp(att) * fx.hl / 100); att.hp = Math.min(maxHp(att), att.hp + h); F.snap(`${an} recuperó salud.`, {sfx: 'heal'}); did = true; }
     if (!did) F.snap('Pero no tuvo efecto.');
     return;
   }
   const e = eff(mv[1], sp(def.s).t);
   if (e === 0) { F.snap(`${an} usó ${mv[0]}. No afecta a ${dn}…`); return; }
-  const hits = fx.h ? rnd(fx.h[0], fx.h[1]) : 1;
-  const phys = mv[2] !== 'special';
-  let total = 0, crit = false;
-  for (let k = 0; k < hits && def.hp > 0; k++) {
-    const c = Math.random() * 1e6 < C.criticalChancePpm;
-    crit = crit || c;
-    // los críticos ignoran las etapas desfavorables
-    const A = c ? Math.max(calcStats(att)[phys ? 1 : 3], bstat(att, phys ? 1 : 3)) : bstat(att, phys ? 1 : 3);
-    const Df = c ? Math.min(calcStats(def)[phys ? 2 : 4], bstat(def, phys ? 2 : 4)) : bstat(def, phys ? 2 : 4);
-    let dmg = Math.floor(Math.floor(Math.floor(2 * att.lv / 5 + 2) * mv[3] * A / Df) / 50) + 2;
-    dmg = dmg * (sp(att.s).t.includes(mv[1]) ? C.stabPermille / 1000 : 1) * e * (c ? C.criticalMultiplierPermille / 1000 : 1);
-    dmg = Math.max(C.minDamageOnHit, Math.floor(dmg * rnd(C.damageRoll.minPermille, C.damageRoll.maxPermille) / 1000));
-    if (opts.spare) dmg = Math.min(dmg, def.hp - 1); // el entrenador debilita sin derrotar
-    def.hp = Math.max(0, def.hp - dmg);
-    total += dmg;
+  let total = 0, crit = false, hits = 1;
+  if (fixed) {
+    total = dealDamage(def, fixed, dn, F, opts);
+  } else {
+    hits = fx.h ? rnd(fx.h[0], fx.h[1]) : 1;
+    const phys = mv[2] !== 'special';
+    const critP = C.criticalChancePpm / 1e6 * (fx.cr ? 8 : 1) * (att.item === 'scope_lens' ? 2 : 1);
+    for (let k = 0; k < hits && def.hp > 0; k++) {
+      const c = Math.random() < critP;
+      crit = crit || c;
+      // los críticos ignoran las etapas desfavorables
+      const A = c ? Math.max(calcStats(att)[phys ? 1 : 3], bstat(att, phys ? 1 : 3)) : bstat(att, phys ? 1 : 3);
+      const Df = c ? Math.min(calcStats(def)[phys ? 2 : 4], bstat(def, phys ? 2 : 4)) : bstat(def, phys ? 2 : 4);
+      let dmg = Math.floor(Math.floor(Math.floor(2 * att.lv / 5 + 2) * mv[3] * A / Df) / 50) + 2;
+      dmg = dmg * (sp(att.s).t.includes(mv[1]) ? C.stabPermille / 1000 : 1) * e * (c ? C.criticalMultiplierPermille / 1000 : 1);
+      if (att.item === 'life_orb') dmg *= 1.3;
+      if (att.item === 'expert_belt' && e > 1) dmg *= 1.2;
+      if (att.item === 'hard_stone' && mv[1] === 'rock') dmg *= 1.2;
+      dmg = Math.max(C.minDamageOnHit, Math.floor(dmg * rnd(C.damageRoll.minPermille, C.damageRoll.maxPermille) / 1000));
+      total += dealDamage(def, dmg, dn, F, opts);
+    }
   }
   let t = `${an} usó ${mv[0]}.`;
-  if (e > 1) t += ' ¡Es muy eficaz!'; else if (e < 1) t += ' No es muy eficaz…';
+  if (!fixed) { if (e > 1) t += ' ¡Es muy eficaz!'; else if (e < 1) t += ' No es muy eficaz…'; }
   if (crit) t += ' ¡Golpe crítico!';
   if (hits > 1) t += ` ¡Golpeó ${hits} veces!`;
-  F.snap(t, {hit: side});
+  F.snap(t, {hit: side, sfx: crit || e > 1 ? 'crit' : 'hit'});
+  if (RECHARGE.has(id)) b.recharge = 1;
+  if (TRAP.has(id) && def.hp > 0 && !db.trap) { db.trap = rnd(4, 5); F.snap(`¡${dn} quedó atrapado!`); }
   if (fx.dr && total > 0) {
     const h = Math.max(1, Math.floor(total * Math.abs(fx.dr) / 100));
     if (fx.dr > 0) { att.hp = Math.min(maxHp(att), att.hp + h); F.snap(`${dn} perdió energía.`); }
     else { att.hp = Math.max(0, att.hp - h); F.snap(`${an} se hizo daño con el retroceso.`); }
   }
+  if (att.item === 'shell_bell' && total > 0 && att.hp > 0) att.hp = Math.min(maxHp(att), att.hp + Math.max(1, Math.floor(total / 8)));
+  if (att.item === 'life_orb' && total > 0 && att.hp > 0) { att.hp = Math.max(0, att.hp - Math.max(1, Math.floor(maxHp(att) / 10))); F.snap(`${an} perdió PS por la Vidasfera.`); }
+  if (def.item === 'rocky_helmet' && mv[2] === 'physical' && att.hp > 0) { att.hp = Math.max(0, att.hp - Math.max(1, Math.floor(maxHp(att) / 6))); F.snap(`¡El Casco Dentado hirió a ${an}!`); }
+  if (SELFKO.has(id)) { att.hp = 0; }
   if (def.hp > 0) {
     if (fx.a && fx.ac && Math.random() * 100 < fx.ac) applyStatus(def, fx.a, dn, F);
-    if (fx.fl && Math.random() * 100 < fx.fl) vol(def).fl = 1;
+    if ((fx.fl && Math.random() * 100 < fx.fl) || (att.item === 'kings_rock' && Math.random() < 0.1)) db.fl = 1;
     if (fx.s && fx.sc && fx.sc < 100 && Math.random() * 100 < fx.sc) applyStages(fx.self ? att : def, fx.s, fx.self ? an : dn, F);
+    checkBerry(def, dn, F);
   }
   if (fx.s && fx.self && fx.sc >= 100 && att.hp > 0) applyStages(att, fx.s, an, F);  // p. ej. Fuerza Bruta, Sofoco
+  if (att.hp > 0) checkBerry(att, an, F);
 }
-// Daño residual al final del turno
-function residual(m, name, side, F) {
+// Daño y curación al final del turno
+function residual(m, other, name, oname, side, F) {
   if (m.hp <= 0) return;
+  const b = vol(m), mx = maxHp(m);
   let d = 0, why = '';
-  if (m.st === 'brn') { d = Math.floor(maxHp(m) / 16); why = 'la quemadura'; }
-  if (m.st === 'psn') { d = Math.floor(maxHp(m) / 8); why = 'el veneno'; }
-  if (m.st === 'tox') { vol(m).tox++; d = Math.floor(maxHp(m) * vol(m).tox / 16); why = 'el veneno'; }
-  if (!d) return;
-  m.hp = Math.max(0, m.hp - Math.max(1, d));
-  F.snap(`${name} sufre por ${why}.`, {hit: side});
+  if (m.st === 'brn') { d = Math.floor(mx / 16); why = 'la quemadura'; }
+  if (m.st === 'psn') { d = Math.floor(mx / 8); why = 'el veneno'; }
+  if (m.st === 'tox') { b.tox++; d = Math.floor(mx * b.tox / 16); why = 'el veneno'; }
+  if (d) { m.hp = Math.max(0, m.hp - Math.max(1, d)); F.snap(`${name} sufre por ${why}.`, {hit: side}); }
+  if (m.hp > 0 && b.trap) { b.trap--; m.hp = Math.max(0, m.hp - Math.max(1, Math.floor(mx / 8))); F.snap(b.trap ? `${name} sigue atrapado.` : `${name} se liberó.`, {hit: side}); }
+  if (m.hp > 0 && b.seed && other && other.hp > 0) {
+    const s = Math.min(m.hp, Math.max(1, Math.floor(mx / 8)));
+    m.hp -= s; other.hp = Math.min(maxHp(other), other.hp + s);
+    F.snap(`Drenadoras quitó salud a ${name}.`, {hit: side});
+  }
+  if (m.hp > 0 && b.yawn && --b.yawn === 0) { if (canAfflict(m, 'slp')) applyStatus(m, 'slp', name, F); }
+  if (m.hp > 0 && m.item === 'leftovers' && m.hp < mx) { m.hp = Math.min(mx, m.hp + Math.max(1, Math.floor(mx / 16))); }
+  if (m.hp > 0) checkBerry(m, name, F);
+  b.protect = 0;
 }
 // Un turno completo entre dos Pokémon
 function exchange(me, foe, F, opts = {}) {
   const names = {me: monName(me), foe: opts.foeName || monName(foe)};
-  const mMove = chooseMove(me, foe, {catching: opts.catching});
-  const fMove = chooseMove(foe, me);
-  const mp = moveData(mMove)[6] || 0, fp = moveData(fMove)[6] || 0;
+  const mMove = vol(me).recharge ? null : chooseMove(me, foe, {catching: opts.catching});
+  const fMove = vol(foe).recharge ? null : chooseMove(foe, me);
+  const prio = id => PROTECT.has(id) ? 4 : (id ? moveData(id)[6] || 0 : 0);
+  const mp = prio(mMove), fp = prio(fMove);
   const meFirst = mp !== fp ? mp > fp : bstat(me, 5) === bstat(foe, 5) ? Math.random() < 0.5 : bstat(me, 5) > bstat(foe, 5);
-  const order = meFirst ? [[me, foe, mMove, 'me']] : [[foe, me, fMove, 'foe']];
-  order.push(meFirst ? [foe, me, fMove, 'foe'] : [me, foe, mMove, 'me']);
+  const order = meFirst ? [[me, foe, mMove, 'me'], [foe, me, fMove, 'foe']] : [[foe, me, fMove, 'foe'], [me, foe, mMove, 'me']];
   for (const [a, d, id, who] of order) {
     if (a.hp <= 0 || d.hp <= 0) continue;
     const an = names[who], dn = names[who === 'me' ? 'foe' : 'me'];
     if (!canAct(a, an, F)) continue;
     useMove(a, d, id, [an, dn], who === 'me' ? 'foe' : 'me', F, who === 'me' ? {spare: opts.spare && opts.spare()} : {});
   }
-  residual(me, names.me, 'me', F);
-  residual(foe, names.foe, 'foe', F);
+  residual(me, foe, names.me, names.foe, 'me', F);
+  residual(foe, me, names.foe, names.me, 'foe', F);
 }
 function firstHealthy(team) { return team.findIndex(m => m.hp > 0); }
 function catchChance(m, ball) {
@@ -368,7 +555,8 @@ function Frames(enabled) {
       xp: m.lv >= 100 ? 1 : (m.xp - expFor(m.s, m.lv)) / Math.max(1, expFor(m.s, m.lv + 1) - expFor(m.s, m.lv))};
     f.list.push({me: pack(f.me), foe: pack(f.foe), text, fx});
   };
-  f.note = text => { addLog(text); f.snap(text); };
+  // los avisos se escriben en el registro cuando la animación llega a ellos (sin adelantar resultados)
+  f.note = (text, extra = {}) => { if (f.on) f.snap(text, Object.assign({log: text}, extra)); else addLog(text); };
   return f;
 }
 
@@ -384,7 +572,7 @@ function wildFor(zoneId) {
   const tot = pool.reduce((a, e) => a + e[1], 0);
   let r = Math.random() * tot, pick = pool[0];
   for (const e of pool) { r -= e[1]; if (r <= 0) { pick = e; break; } }
-  return makeMon(pick[0], rnd(pick[2], pick[3]));
+  return makeMon(pick[0], rnd(pick[2], pick[3]), {shiny: Math.random() < SHINY_ODDS * (boostOn('shiny') ? 2 : 1)});
 }
 function shouldCatch(w) {
   if (w.shiny) return S.policy !== 'none';
@@ -490,7 +678,8 @@ function trainerBattle(name, foes, F) {
   let ai = firstHealthy(S.team), fi = 0;
   if (ai < 0) return false;
   F.me = S.team[ai]; F.foe = foes[0];
-  F.snap(`¡${name} te desafía! Saca a ${monName(foes[0])}.`, {appear: 1});
+  F.snap(`¡${name} te desafía!`, {trainer: name.replace(/ \(.*\)$/, '')});
+  F.snap(`${name} saca a ${monName(foes[0])}.`, {appear: 1});
   for (let turn = 0; turn < 300; turn++) {
     const me = S.team[ai], w = foes[fi];
     F.me = me; F.foe = w;
@@ -521,6 +710,7 @@ function gymBattle(zoneId) {
   healAll();
   const foes = g.t.map(([s, lv]) => makeMon(s, lv, {shiny: false, iv: [20,20,20,20,20,20]}));
   const F = Frames(true);
+  Sound.music('battle');
   const win = trainerBattle(`Líder ${g.l}`, foes, F);
   if (win) {
     const prize = Math.max(...g.t.map(x => x[1])) * 100;
@@ -530,17 +720,18 @@ function gymBattle(zoneId) {
     F.note(first ? `¡Ganaste la <b>${g.b}</b> y ${fmt(prize)}!` : `Revancha ganada: ${fmt(Math.floor(prize / 4))}.`);
   } else F.note(`${g.l} te venció. Entrena más y vuelve.`);
   healAll();
-  play(F, () => { save(); renderAll(); });
+  play(F, () => { if (win) Sound.jingle('victory'); save(); renderAll(); });
 }
 
 // Liga: 5 combates seguidos; entre uno y otro solo descansas un poco (y las pociones automáticas)
 function leagueOpen(key) { return Object.keys(GYMS).filter(z => D.zones[z].r === LEAGUES[key].need && S.badges[z]).length >= 8; }
 function leagueRun(key) {
   const L = LEAGUES[key];
-  if (!leagueOpen(key)) return toast(`Necesitas las 8 medallas de ${L.need === 'kanto' ? 'Kanto' : 'Johto'}.`);
+  if (!leagueOpen(key)) return toast(`Necesitas las 8 medallas de ${({kanto: 'Kanto', johto: 'Johto', hoenn: 'Hoenn'})[L.need]}.`);
   S.hunting = false; clearTimeout(huntTimer);
   healAll();
   const F = Frames(true);
+  Sound.music('battle');
   let won = true;
   for (const [k, foe] of L.f.entries()) {
     const team = foe.t.map(([s, lv]) => makeMon(s === 'RIVAL' ? (RIVAL_ACE[S.starter] || 'blastoise') : s, lv, {shiny: false, iv: [25,25,25,25,25,25]}));
@@ -561,7 +752,7 @@ function leagueRun(key) {
     F.note(`🏆 ¡Eres el nuevo Campeón de la ${L.n}! +${fmt(prize)}. Tu equipo entró al Salón de la Fama.`);
   }
   healAll();
-  play(F, () => { save(); renderAll(); });
+  play(F, () => { if (won) Sound.jingle('champion'); save(); renderAll(); });
 }
 
 // Copa diaria: rivales generados con la fecha como semilla (iguales para todos ese día)
@@ -587,6 +778,7 @@ function cupBattle() {
   const round = S.cup.round + 1;
   const rv = cupRivals(round);
   const F = Frames(true);
+  Sound.music('battle');
   const win = trainerBattle(`${rv.name} (Ronda ${round}/3)`, rv.team, F);
   if (win) {
     S.cup.round = round;
@@ -598,7 +790,7 @@ function cupBattle() {
     if (round === 3) { S.cup.done = true; S.cup.trophies = (S.cup.trophies || 0) + 1; F.note('🏆 ¡Campeón de la Copa diaria!'); }
   } else { S.cup.done = true; F.note(`Quedaste fuera en la ronda ${round}. Mañana hay otra Copa.`); }
   healAll();
-  play(F, () => { save(); renderAll(); });
+  play(F, () => { if (win) Sound.jingle('victory'); save(); renderAll(); });
 }
 
 // ---------- progreso fuera de línea ----------
@@ -652,6 +844,15 @@ function drawFrame(fr) {
   drawSide('foe', fr.foe); drawSide('me', fr.me);
   $('#msg').innerHTML = fr.text || '';
   const fx = fr.fx || {};
+  if (fx.log) addLog(fx.log);
+  if (fx.sfx) Sound.sfx(fx.sfx);
+  if (fx.appear) Sound.sfx('appear');
+  if (fx.faint) Sound.sfx('faint');
+  if (fx.ball && !fx.caught) Sound.sfx('ball');
+  if (fx.caught) Sound.jingle('catch');
+  if (fx.log && /subió al nivel/.test(fx.log)) Sound.jingle('levelup');
+  if (fx.log && /evolucionó/.test(fx.log)) Sound.jingle('victory');
+  if (fx.trainer) { const im = $('#foeImg'); im.src = Avatar.url(fx.trainer); im.classList.remove('gone', 'faint'); $('#foeName').textContent = fx.trainer; $('#foeLv').textContent = ''; }
   if (fx.hit) { const el = $(`#${fx.hit}Img`); el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
   if (fx.faint) $(`#${fx.faint}Img`).classList.add('faint');
   if (fx.ball) { const b = $('#ballFx'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on'); if (fx.caught) $('#foeImg').classList.add('gone'); }
@@ -672,6 +873,13 @@ function huntLoop() {
     huntTimer = setTimeout(huntLoop, boostOn('lure') ? 400 : 1100);
   });
 }
+// Encuentro al caminar por la hierba alta: un combate y de vuelta al mapa
+function walkEncounter() {
+  const F = Frames(true);
+  const r = wildEncounter(F);
+  if (r.stop) return;
+  play(F, () => { save(); renderTop(); renderHuntCtl(); setTimeout(() => showScreen('map'), 700); });
+}
 function toggleHunt() {
   if (!S.hunting) {
     if (!D.zones[S.zone].h) return toast('En esta zona no hay Pokémon salvajes. Ve a una ruta desde el Mapa.');
@@ -691,9 +899,11 @@ function showScreen(name) {
 }
 function openSheet(html) { $('#sheetBox').innerHTML = html; $('#sheet').classList.remove('hidden'); }
 function closeSheet() { $('#sheet').classList.add('hidden'); }
+function zoneMusic() { const k = (D.zones[S.zone] || {}).k; return k === 'town' ? 'town' : k === 'cave' || k === 'dungeon' ? 'cave' : 'route'; }
 function renderTop() {
   const z = D.zones[S.zone];
-  $('#zoneName').textContent = z ? z.n : S.zone;
+  $('#zoneName').innerHTML = `<img class="av" src="${Avatar.url(S.avatar ?? 0, 52)}" alt="">${esc(z ? z.n : S.zone)}`;
+  if (!playing) Sound.music(zoneMusic());
   $('#moneyVal').textContent = fmt(S.money);
   $('#arena').className = ({cave: 'cave', water: 'water', town: 'town', dungeon: 'dungeon'})[z && z.k] || '';
 }
@@ -744,6 +954,7 @@ function monSheet(where, i) {
   const itemEvos = sp(m.s).e.filter(e => e.item).map(e => `${sp(e.to).n} (${itemName(e.item)})`);
   openSheet(`<div class="row"><img class="mini" style="width:96px;height:96px" src="${dexImg(m.s, m.shiny)}"><div class="grow">
     <h2>${esc(monName(m))}</h2>${typeTags(sp(m.s).t)}<div class="small">Nº ${sp(m.s).d} · Nv. ${m.lv} · ${NAT_ES[n]} (${natTxt})</div>
+    <div class="small">Objeto: ${m.item ? `<b style="color:var(--ink)">${itemName(m.item)}</b>` : 'ninguno'}</div>
     <div class="small">${m.lv < 100 ? `Faltan ${next.toLocaleString('es-MX')} PE para subir` : 'Nivel máximo'}</div></div></div>
     <table class="stats">${st.map((v, k) => `<tr><td>${STAT[k]}</td><td class="v">${k === 0 ? `${m.hp}/${v}` : v}</td><td class="small">IV ${m.iv[k]}</td></tr>`).join('')}</table>
     <h3>Movimientos</h3>${m.moves.map(id => { const mv = D.moves[id]; return mv ? `<div class="small">${typeTags([mv[1]])} <b style="color:var(--ink)">${mv[0]}</b> · Pot. ${mv[3] || '—'} · Prec. ${mv[4] || '—'}</div>` : ''; }).join('')}
@@ -754,6 +965,7 @@ function monSheet(where, i) {
       ${where === 'box' ? `<button class="btn y" data-a="toteam">${S.team.length < 6 ? 'Al equipo' : 'Cambiar por el último del equipo'}</button>` : ''}
       ${evoItems.map(e => `<button class="btn y" data-a="evo" data-item="${e.item}">Usar ${itemName(e.item)}</button>`).join('')}
       <button class="btn y" data-a="moves">Ataques</button>
+      <button class="btn" data-a="held">Objeto</button>
       <button class="btn" data-a="nick">Mote</button>
       ${where === 'box' || S.team.length > 1 ? '<button class="btn r" data-a="release">Liberar</button>' : ''}
       <button class="btn" data-a="close">Cerrar</button>
@@ -762,12 +974,13 @@ function monSheet(where, i) {
     const a = b.dataset.a;
     if (a === 'close') return closeSheet();
     if (a === 'moves') return moveSheet(where, i);
+    if (a === 'held') return heldSheet(where, i);
     if (a === 'lead') { S.team.unshift(S.team.splice(i, 1)[0]); }
     if (a === 'tobox') { S.box.push(S.team.splice(i, 1)[0]); }
     if (a === 'toteam') { const x = S.box.splice(i, 1)[0]; if (S.team.length >= 6) S.box.push(S.team.pop()); S.team.push(x); }
     if (a === 'evo') { const it = b.dataset.item; if (tryEvolve(m, it)) { S.items[it]--; toast(`¡Evolucionó a ${sp(m.s).n}!`); } }
     if (a === 'nick') { const nn = prompt('Mote (vacío para quitarlo):', m.nick || ''); if (nn !== null) m.nick = nn.trim().slice(0, 12) || undefined; }
-    if (a === 'release') { if (!confirm(`¿Liberar a ${monName(m)}? No se puede deshacer.`)) return; list.splice(i, 1); S.money += m.lv * 10; toast(`Liberaste a ${monName(m)}. +${fmt(m.lv * 10)}`); }
+    if (a === 'release') { if (!confirm(`¿Liberar a ${monName(m)}? No se puede deshacer.`)) return; list.splice(i, 1); if (m.item) S.items[m.item] = (S.items[m.item] || 0) + 1; S.money += m.lv * 10; toast(`Liberaste a ${monName(m)}. +${fmt(m.lv * 10)}`); }
     save(); closeSheet(); renderTeam(); renderHunt();
   });
 }
@@ -796,13 +1009,32 @@ function moveSheet(where, i) {
   };
   draw();
 }
+// Equipar objetos
+function heldSheet(where, i) {
+  const list = where === 'team' ? S.team : S.box, m = list[i];
+  const own = Object.keys(HELD).filter(k => S.items[k] > 0);
+  openSheet(`<h2>Objeto de ${esc(monName(m))}</h2>
+    <p class="small">Ahora: ${m.item ? `<b>${itemName(m.item)}</b> — ${HELD[m.item] || ''}` : 'ninguno'}</p>
+    <div class="list">${own.map(k => `<div class="card" data-h="${k}"><div class="row"><img style="width:32px;height:32px;image-rendering:pixelated" src="${itemImg(k)}" onerror="this.style.visibility='hidden'"><div class="grow"><b>${itemName(k)}</b> ×${S.items[k]}<br><span class="small">${HELD[k]}</span></div></div></div>`).join('') || '<p class="small">No tienes objetos para equipar. Cómpralos en la Tienda de cualquier pueblo.</p>'}</div>
+    <div class="actions">${m.item ? '<button class="btn r" id="hOff">Quitar objeto</button>' : ''}<button class="btn" id="hBack">‹ Atrás</button></div>`);
+  $('#sheetBox').querySelectorAll('[data-h]').forEach(c => c.onclick = () => {
+    if (m.item) S.items[m.item] = (S.items[m.item] || 0) + 1;
+    m.item = c.dataset.h; S.items[m.item]--;
+    save(); toast(`${monName(m)} lleva ${itemName(m.item)}.`); monSheet(where, i);
+  });
+  if ($('#hOff')) $('#hOff').onclick = () => { S.items[m.item] = (S.items[m.item] || 0) + 1; m.item = null; save(); monSheet(where, i); };
+  $('#hBack').onclick = () => monSheet(where, i);
+}
 function zoneLabel(id) {
   const z = D.zones[id]; if (!z) return id;
   const lv = z.h && z.lv[1] ? ` · Nv. ${z.lv[0]}–${z.lv[1]}` : '';
-  return `${z.n}<span class="small"> · ${({kanto:'Kanto',johto:'Johto',hoenn:'Hoenn'})[z.r]}${lv}${z.h ? '' : ' · sin salvajes'}${GYMS[id] ? ' · 🏅 Gimnasio' : ''}</span>`;
+  return `${z.n}<span class="small"> · ${({kanto:'Kanto',johto:'Johto',hoenn:'Hoenn'})[z.r]}${lv}${z.h ? '' : ' · sin salvajes'}${GYMS[id] ? ' · 🏅 Gimnasio' : ''}${Object.values(LEAGUES).some(L => (L.zone || 'indigo_plateau') === id) ? ' · 🏆 Liga' : ''}</span>`;
 }
-function travel(id) {
+function travel(id, spawn) {
+  const m = window.GAME_MAPS && GAME_MAPS[id];
+  WorldMap.place(id, ...(spawn || (m ? m.sp : [0, 0])));
   S.zone = id; S.visited[id] = 1;
+  Sound.sfx('door');
   const z = D.zones[id];
   if (!z.h && S.hunting) { S.hunting = false; clearTimeout(huntTimer); }
   addLog(`Viajaste a <b>${z.n}</b>.`);
@@ -815,18 +1047,26 @@ function renderMap() {
   const g = GYMS[S.zone];
   const encs = z.h ? z.E.slice(0, 12).map(e => `<img class="mini" style="width:40px;height:40px;${S.seen[e[0]] ? '' : 'filter:brightness(0) opacity(.5)'}" title="${S.seen[e[0]] ? sp(e[0]).n : '???'}" src="${dexImg(e[0])}">`).join('') : '';
   el.innerHTML = `<h2>${z.n}</h2>
+    ${WorldMap.has(S.zone) ? `<canvas id="worldCv"></canvas><div class="small" style="margin:4px 0 8px">Toca el mapa para caminar. Las zonas amarillas llevan a otro lugar.${z.h ? ' En la hierba alta pueden salir Pokémon salvajes.' : ''}</div>` : ''}
     <div class="card"><div>${zoneLabel(S.zone)}</div>${encs ? `<div style="margin-top:6px">${encs}</div>` : ''}
       <div class="actions">
         ${z.k === 'town' ? '<button class="btn" id="mHeal">✚ Centro Pokémon</button><button class="btn" id="mShop">🛒 Tienda</button>' : ''}
-        ${S.zone === 'indigo_plateau' ? Object.keys(LEAGUES).map(k => `<button class="btn y" data-lg="${k}">🏆 ${LEAGUES[k].n}${leagueOpen(k) ? '' : ' (8 medallas)'}</button>`).join('') : ''}
-        ${g ? `<button class="btn y" id="mGym">🏅 Retar a ${g.l}${S.badges[S.zone] ? ' (revancha)' : ''}</button>` : ''}
+        ${Object.keys(LEAGUES).filter(k => (LEAGUES[k].zone || 'indigo_plateau') === S.zone).map(k => `<button class="btn y" data-lg="${k}">🏆 ${LEAGUES[k].n}${leagueOpen(k) ? '' : ' (8 medallas)'}</button>`).join('')}
+        ${g ? `<button class="btn y" id="mGym">🏅 Retar a ${g.l}${g.alt ? ' (equipo alternativo)' : ''}${S.badges[S.zone] ? ' (revancha)' : ''}</button>` : ''}
         ${z.h ? '<button class="btn y" id="mHunt">Cazar aquí</button>' : ''}
       </div></div>
     <h3>Caminos desde aquí</h3>
     <div class="list">${z.x.filter(id => D.zones[id]).map(id => `<div class="card" data-z="${id}">→ ${zoneLabel(id)}</div>`).join('')}</div>
     ${flyTo.length ? `<h3>Volar a un pueblo visitado</h3><div class="list">${flyTo.map(id => `<div class="card" data-z="${id}">✈ ${zoneLabel(id)}</div>`).join('')}</div>` : ''}`;
   el.querySelectorAll('[data-z]').forEach(c => c.onclick = () => travel(c.dataset.z));
-  if ($('#mHeal')) $('#mHeal').onclick = () => { healAll(); save(); toast('Tu equipo está como nuevo.'); };
+  if ($('#worldCv')) WorldMap.mount($('#worldCv'), S.zone, {
+    onExit: e => travel(e[0], [e[5], e[6]]),
+    onStep: (x, y, grass) => {
+      if (S.hunting || playing || !z.h || !grass || Math.random() > 0.08 || firstHealthy(S.team) < 0) return false;
+      walkEncounter(); return true;
+    },
+  });
+  if ($('#mHeal')) $('#mHeal').onclick = () => { healAll(); Sound.sfx('heal'); save(); toast('Tu equipo está como nuevo.'); };
   if ($('#mShop')) $('#mShop').onclick = () => showScreen('bag');
   el.querySelectorAll('[data-lg]').forEach(b => b.onclick = () => leagueRun(b.dataset.lg));
   if ($('#mGym')) $('#mGym').onclick = () => { S.hunting = false; clearTimeout(huntTimer); gymBattle(S.zone); };
@@ -858,15 +1098,15 @@ function renderBag() {
     <div class="shop">${own.map(k => `<div class="card"><div class="row"><img src="${itemImg(k)}" alt="" onerror="this.src='assets/items/poke-ball.png'"><div class="grow">${itemName(k)}</div><span class="qty">×${S.items[k]}</span>
       ${BOOST_ITEMS[k] ? `<button class="btn y" data-use="${k}">Usar</button>` : ''}${k === 'revive' ? `<button class="btn y" data-use="revive">Usar</button>` : ''}${POTION[k] ? `<button class="btn" data-use="${k}">Usar</button>` : ''}</div></div>`).join('') || '<p class="small">Vacía.</p>'}</div>
     <h2>Tienda Pokémon</h2>${inTown ? '' : '<p class="small">Solo puedes comprar en pueblos y ciudades. Viaja a uno desde el Mapa.</p>'}
-    <div class="shop">${SHOP_LIST.filter(k => D.items[k] || ITEM_ES[k]).map(k => { const p = (D.items[k] || {}).p || 2100;
-      return `<div class="card"><div class="row"><img src="${itemImg(k)}" alt="" onerror="this.src='assets/items/poke-ball.png'"><div class="grow">${itemName(k)}<br><span class="small">${fmt(p)}</span></div>
+    ${SHOP_SECTIONS.map(([title, keys]) => `<h3>${title}</h3><div class="shop">${keys.filter(k => ITEM_ES[k]).map(k => { const p = itemPrice(k);
+      return `<div class="card"><div class="row"><img src="${itemImg(k)}" alt="" onerror="this.src='assets/items/poke-ball.png'"><div class="grow">${itemName(k)}<br><span class="small">${fmt(p)}${HELD[k] ? ` · ${HELD[k]}` : BOOST_ITEMS[k] ? ` · ${BOOST_ITEMS[k].txt}` : ''}</span></div>
       <button class="btn y" data-buy="${k}" data-q="1" ${!inTown || S.money < p ? 'disabled' : ''}>×1</button>
-      <button class="btn y" data-buy="${k}" data-q="10" ${!inTown || S.money < p * 10 ? 'disabled' : ''}>×10</button></div></div>`; }).join('')}</div>`;
+      <button class="btn y" data-buy="${k}" data-q="10" ${!inTown || S.money < p * 10 ? 'disabled' : ''}>×10</button></div></div>`; }).join('')}</div>`).join('')}`;
   $('#scr-bag').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
-    const k = b.dataset.buy, q = +b.dataset.q, p = ((D.items[k] || {}).p || 2100) * q;
+    const k = b.dataset.buy, q = +b.dataset.q, p = itemPrice(k) * q;
     if (S.money < p) return toast('No te alcanza.');
     S.money -= p; S.items[k] = (S.items[k] || 0) + q;
-    toast(`Compraste ${q} × ${itemName(k)}.`); save(); renderTop(); renderBag();
+    Sound.sfx('buy'); toast(`Compraste ${q} × ${itemName(k)}.`); save(); renderTop(); renderBag();
   });
   $('#scr-bag').querySelectorAll('[data-use]').forEach(b => b.onclick = () => useItem(b.dataset.use));
 }
@@ -883,16 +1123,21 @@ function useItem(k) {
 }
 function renderMore() {
   if (S.cup.day !== todayKey()) S.cup = {day: todayKey(), round: 0, done: false, trophies: S.cup.trophies || 0};
-  const kb = Object.keys(GYMS).filter(z => D.zones[z].r === 'kanto'), jb = Object.keys(GYMS).filter(z => D.zones[z].r === 'johto');
+  const kb = Object.keys(GYMS).filter(z => D.zones[z].r === 'kanto'), jb = Object.keys(GYMS).filter(z => D.zones[z].r === 'johto'), hb = Object.keys(GYMS).filter(z => D.zones[z].r === 'hoenn');
   const badge = z => `<span title="${GYMS[z].b}" style="opacity:${S.badges[z] ? 1 : .25}">🏅</span>`;
   $('#scr-more').innerHTML = `<h2>Copa diaria</h2>
     <div class="card"><div>Tres rondas contra rivales que cambian cada día. Ronda actual: <b>${S.cup.done ? 'terminada' : S.cup.round + 1}/3</b> · Trofeos: ${S.cup.trophies || 0} 🏆</div>
     <div class="actions"><button class="btn y" id="cupGo" ${S.cup.done || !S.team.length ? 'disabled' : ''}>Pelear ronda ${Math.min(3, S.cup.round + 1)}</button></div></div>
-    <h2>Medallas</h2><div class="card">Kanto ${kb.map(badge).join('')}<br>Johto ${jb.map(badge).join('')}<div class="small">Reta a los líderes desde el Mapa, en su ciudad.</div></div>
-    <h2>Liga Pokémon</h2><div class="card">${Object.entries(LEAGUES).map(([k, L]) => `<div>${L.n}: ${S.league && S.league[k] ? `<b>Campeón</b> ×${S.league[k]}` : leagueOpen(k) ? 'abierta (Meseta Añil)' : 'necesitas 8 medallas'}</div>`).join('')}
+    <h2>Medallas</h2><div class="card">Kanto ${kb.map(badge).join('')}<br>Johto ${jb.map(badge).join('')}<br>Hoenn ${hb.map(badge).join('')}<div class="small">Reta a los líderes desde el Mapa, en su ciudad.</div></div>
+    <h2>Liga Pokémon</h2><div class="card">${Object.entries(LEAGUES).map(([k, L]) => `<div>${L.n}: ${S.league && S.league[k] ? `<b>Campeón</b> ×${S.league[k]}` : leagueOpen(k) ? `abierta (${D.zones[L.zone || 'indigo_plateau'].n})` : 'necesitas 8 medallas'}</div>`).join('')}
       ${S.hall && S.hall.length ? `<h3>Salón de la Fama</h3>${S.hall.slice(0, 5).map(h => `<div class="small">${h.d} · ${LEAGUES[h.lg].n}<br>${h.t.map(([s, lv, sh]) => `<img class="mini" style="width:40px;height:40px" title="${sp(s).n} Nv. ${lv}" src="${dexImg(s, sh)}">`).join('')}</div>`).join('')}` : ''}</div>
     ${window.AndroidApp ? `<h2>Actualizaciones</h2><div class="card"><div class="small">Versión ${VERSION} · build ${AndroidApp.build()}. La app busca versiones nuevas sola al abrirse; si solo cambió el juego, baja un parche pequeño sin reinstalar.</div>
       <div class="actions"><button class="btn y" id="updCheck">⟳ Buscar actualización</button><button class="btn" id="updHist">Historial de versiones</button></div></div>` : ''}
+    <h2>Sonido</h2><div class="card">
+      <label class="chk"><input type="checkbox" id="optMusic" ${S.audio.music ? 'checked' : ''}> Música</label> &nbsp;
+      <label class="chk"><input type="checkbox" id="optSfx" ${S.audio.sfx ? 'checked' : ''}> Efectos de sonido</label>
+      <div class="small" style="margin-top:6px">Volumen <input type="range" id="optVol" min="0" max="100" value="${Math.round(S.audio.vol * 100)}" style="width:60%;vertical-align:middle"></div></div>
+    <h2>Tu entrenador</h2><div class="card"><div class="avatars">${Array.from({length: Avatar.count}, (_, i) => `<img src="${Avatar.url(i)}" data-av="${i}" class="${(S.avatar ?? 0) === i ? 'on' : ''}" alt="">`).join('')}</div></div>
     <h2>Estadísticas</h2><div class="card small">Combates: ${S.stats.battles} · Capturas: ${S.stats.caught} · Shiny: ${S.stats.shinies}</div>
     <h2>Guardado</h2><div class="card"><div class="small">Tu partida se guarda sola en este teléfono. Para pasarla a otro, copia el código.</div>
       <div class="actions"><button class="btn" id="exp">Exportar</button><button class="btn" id="imp">Importar</button><button class="btn r" id="wipe">Borrar partida</button></div>
@@ -902,6 +1147,10 @@ function renderMore() {
       Todo se juega y se guarda en este dispositivo. Los Pokédólares solo se ganan jugando.<br><br>
       Proyecto no oficial, no afiliado a Nintendo, Creatures Inc., GAME FREAK ni The Pokémon Company. Pokémon y sus nombres son marcas de sus respectivos dueños.<br>
       Créditos: sprites y diseño del juego original Pokédex Idle; datos de especies, movimientos, evoluciones y encuentros de PokéAPI.</div>`;
+  $('#optMusic').onchange = e => { S.audio.music = e.target.checked; Sound.settings(S.audio); save(); };
+  $('#optSfx').onchange = e => { S.audio.sfx = e.target.checked; Sound.settings(S.audio); save(); };
+  $('#optVol').oninput = e => { S.audio.vol = e.target.value / 100; Sound.settings(S.audio); save(); };
+  $('#scr-more').querySelectorAll('[data-av]').forEach(im => im.onclick = () => { S.avatar = +im.dataset.av; save(); renderTop(); renderMore(); });
   if ($('#updCheck')) { $('#updCheck').onclick = () => AndroidApp.check(); $('#updHist').onclick = () => AndroidApp.history(); }
   $('#cupGo').onclick = () => { S.hunting = false; clearTimeout(huntTimer); cupBattle(); };
   $('#exp').onclick = () => { save(); $('#saveTxt').value = btoa(unescape(encodeURIComponent(JSON.stringify(S)))); $('#saveTxt').select(); toast('Código listo para copiar.'); };
@@ -924,6 +1173,8 @@ function chooseStarter() {
 }
 function init() {
   load();
+  if (!S.audio) S.audio = {music: true, sfx: true, vol: 0.6};
+  Sound.settings(S.audio);
   document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showScreen(b.dataset.s));
   $('#btnHunt').onclick = toggleHunt;
   $('#btnHeal').onclick = () => {

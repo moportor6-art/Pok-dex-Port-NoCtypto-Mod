@@ -45,7 +45,7 @@ for mid, mv in moves.items():
         fx["s"] = stat_ch[num]
         fx["sc"] = i(mm.get("stat_chance"), 0) or (100 if mv[3] == 0 else 0)
         fx["self"] = 1 if r["target_id"] in ("7", "4", "13") else 0
-    for k, col in (("dr", "drain"), ("hl", "healing"), ("fl", "flinch_chance")):
+    for k, col in (("dr", "drain"), ("hl", "healing"), ("fl", "flinch_chance"), ("cr", "crit_rate")):
         v = i(mm.get(col), 0)
         if v:
             fx[k] = v
@@ -231,10 +231,10 @@ for zid, z in zones.items():
         z["lv"] = [min(e[2] for e in z["E"]), max(e[3] for e in z["E"])]
 
 # --- Objetos (sin nada del Vault/cripto) ---
-CRYPTO = {"vault_incense", "vault_super_incense"}
+CRYPTO = {"vault_incense", "vault_super_incense"}  # objetos del Vault (cripto): fuera
 PRICES = {"poke_ball": 200, "great_ball": 600, "ultra_ball": 1200, "potion": 300, "super_potion": 700,
           "hyper_potion": 1200, "revive": 1500, "lure_incense": 800, "repel": 400, "lucky_egg": 5000,
-          "link_cable": 3000, "level_ball": 900, "lure_ball": 900, "moon_ball": 900, "friend_ball": 900,
+          "link_cable": 3000, "shiny_incense": 6000, "level_ball": 900, "lure_ball": 900, "moon_ball": 900, "friend_ball": 900,
           "love_ball": 900, "fast_ball": 900, "heavy_ball": 900}
 items = {}
 for it in d["items"]:
@@ -256,6 +256,30 @@ data = {
     "zones": zones, "items": items, "natures": [n if isinstance(n, str) else n.get("id") for n in d["natures"]],
     "starters": [s["species"]["id"] for s in d["starters"]], "combat": d["sheetRules"]["combat"],
 }
+# --- Mapas caminables: colisiones originales comprimidas por filas (RLE) ---
+def rle(row):
+    out, i = [], 0
+    while i < len(row):
+        j = i
+        while j < len(row) and row[j] == row[i]:
+            j += 1
+        out.append(f"{j - i}{row[i]}" if j - i > 1 else row[i])
+        i = j
+    return "".join(out)
+
+maps = {}
+for z in d["zones"]:
+    m = z["map"]; c = m["collision"]; cell = c["cell"]
+    cv = lambda v: int(v // cell)
+    maps[z["id"]] = {
+        "w": c["cols"], "h": c["rows"], "g": [rle(r) for r in c["grid"]],
+        "sp": [cv(m["spawn"]["x"]), cv(m["spawn"]["y"])],
+        "ex": [[e["targetZoneId"], cv(e["rect"]["x"]), cv(e["rect"]["y"]), max(1, cv(e["rect"]["width"])), max(1, cv(e["rect"]["height"])),
+                cv(e["targetSpawn"]["x"]), cv(e["targetSpawn"]["y"])] for e in m["exits"]],
+    }
+with open(OUT.replace("data.js", "maps.js"), "w", encoding="utf-8") as f:
+    f.write("window.GAME_MAPS=" + json.dumps(maps, separators=(",", ":")) + ";\n")
+
 with open(OUT, "w", encoding="utf-8") as f:
     f.write("window.GAME_DATA=" + json.dumps(data, ensure_ascii=False, separators=(",", ":")) + ";\n")
 

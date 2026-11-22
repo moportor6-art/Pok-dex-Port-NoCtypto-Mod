@@ -12,15 +12,20 @@ y la partida se guarda en el dispositivo.
 - `tools/build_data.py` — regenera `data.js` (`python3 tools/build_data.py catalog.json carpeta_csv game/data.js`).
 - `android/` — la app Android (WebView a pantalla completa) con su actualizador.
 
-## Qué incluye el juego (v0.2)
+## Qué incluye el juego (v0.3)
 
 - Caza idle con progreso fuera de línea (hasta 8 h), captura con la fórmula real y Pokébolas compradas con Pokédólares.
-- Combates con tipos, STAB, críticos, estados alterados (sueño, parálisis, veneno, quemadura, congelación, confusión),
-  cambios de estadísticas, ataques de varios golpes, drenaje, curación y retroceso.
+- **Mapas caminables** de las 200 zonas (con las colisiones del juego original y arte dibujado por código):
+  toca para caminar, cruza a otras zonas y encuentra Pokémon salvajes en la hierba alta.
+- Combates con tipos, STAB, críticos, estados alterados, cambios de estadísticas, varios golpes, drenaje, curación,
+  retroceso, Drenadoras, Protección/Detección, Bostezo, ataques de carga (Rayo Solar, Vuelo, Excavar…), Hiperrayo,
+  ataques que atrapan, fulminantes, de daño fijo, Descanso y Autodestrucción.
+- Objetos equipables (Restos, objetos Elección, Banda Focus, Vidasfera…) y bayas.
 - Elegir los ataques a mano (o dejarlo en automático).
-- 200 zonas de Kanto, Johto y Hoenn, 251 Pokémon, evoluciones por nivel, piedra, objeto y hora del día.
-- 16 gimnasios (Kanto y Johto), Liga Kanto y Liga Johto (Alto Mando + Campeón) y Salón de la Fama.
+- 251 Pokémon, evoluciones por nivel, piedra, objeto y hora del día.
+- 24 gimnasios (Kanto, Johto y Hoenn con equipos alternativos), Liga Kanto, Johto y Hoenn, y Salón de la Fama.
 - Copa diaria contra rivales que cambian cada día.
+- Música y efectos chiptune originales (Web Audio, sin archivos) y avatares de entrenador en pixel art.
 
 ## App Android
 
