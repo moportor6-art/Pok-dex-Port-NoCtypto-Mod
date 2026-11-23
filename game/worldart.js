@@ -20,7 +20,7 @@ const WorldArt = (() => {
   }
   // Máscara de una capa: formas en unidades de casilla (32 px), con borde irregular tipo pixel art
   function mask(shapes, W, H, k) {
-    const S = 4, w = Math.ceil(W / S), h = Math.ceil(H / S);
+    const S = 2, w = Math.ceil(W / S), h = Math.ceil(H / S);
     const m = document.createElement('canvas'); m.width = w; m.height = h;
     const c = m.getContext('2d'); c.fillStyle = c.strokeStyle = '#fff'; c.lineCap = c.lineJoin = 'round';
     const u = TILE / S;
@@ -36,7 +36,7 @@ const WorldArt = (() => {
     }
     // suaviza y vuelve a cortar con ruido: bordes orgánicos de 4 px
     const b = document.createElement('canvas'); b.width = w; b.height = h;
-    const bc = b.getContext('2d'); bc.filter = 'blur(1.2px)'; bc.drawImage(m, 0, 0);
+    const bc = b.getContext('2d'); bc.filter = 'blur(2px)'; bc.drawImage(m, 0, 0);
     const d = bc.getImageData(0, 0, w, h), px = d.data;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4, a = px[i + 3] / 255, t = 0.35 + (hash(x + k * 977, y) % 1000) / 1000 * 0.3;

@@ -63,15 +63,15 @@ const WorldMap = (() => {
         const role = KR[l.kind]; if (!role || (role === 'gym' && !GYMS[id])) continue;
         const x = clamp(Math.floor(l.x / 16), 0, w - 1);
         let y = clamp(Math.floor(l.y / 16) - 1, 0, h - 1), found = null;
-        for (let k = 0; k < 5 && !found; k++) for (const dx of [0, -1, 1, -2, 2]) { const xx = x + dx, yy = y + k; if (yy < h && xx >= 0 && xx < w && rows[yy][xx] === 0) { found = [xx, yy]; break; } }
+        for (let k = 0; k < 12 && !found; k++) for (const dx of [0, -1, 1, -2, 2, -3, 3, -4, 4]) { const xx = x + dx, yy = y + k; if (yy < h && xx >= 0 && xx < w && rows[yy][xx] === 0) { found = [xx, yy]; break; } }
         if (found) roles[role] = {door: found, x0: x - 3, x1: x + 3, y0: Math.max(0, found[1] - 9), y1: found[1] - 1, art: 1};
       }
     }
-    take('center', near);
-    take('shop', near);
+    const artMode = typeof WorldArt !== 'undefined' && WorldArt.has(id);
+    if (!artMode) { take('center', near); take('shop', near); }   // con el mapa original solo cuentan sus edificios reales
     // si el pueblo no tiene edificio para algo, se pone un puesto cerca de la entrada
     for (const role of ['center', 'shop']) {
-      if (roles[role]) continue;
+      if (roles[role] || artMode) continue;
       let pick = null;
       for (let r = 3; r < 14 && !pick; r++) for (let dy = -r; dy <= r && !pick; dy++) for (let dx = -r; dx <= r && !pick; dx++) {
         const x = g.m.sp[0] + dx, y = g.m.sp[1] + dy;
@@ -241,8 +241,10 @@ const WorldMap = (() => {
   }
   function draw() {
     if (!ctx || !G) return;
-    const W = cv.clientWidth, H = cv.clientHeight;
-    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    // con el arte original se aleja la cámara para ver más del mundo, como en el juego original
+    const Z = zoom();
+    const W = cv.clientWidth / Z, H = cv.clientHeight / Z;
+    ctx.setTransform(devicePixelRatio * Z, 0, 0, devicePixelRatio * Z, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#11142a'; ctx.fillRect(0, 0, W, H);
     const [camX, camY] = cam(W, H);
@@ -263,7 +265,7 @@ const WorldMap = (() => {
       const I = G.interior, nx = I.npc[0] * T - camX, ny = I.npc[1] * T - camY - 6;
       const who = ({center: 2, shop: 4})[I.role] ?? (I.leader || I.role);
       Avatar.draw(ctx, Math.round(nx), Math.round(ny), 1, who);
-      ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'center';
+      ctx.font = `bold ${Math.round(12 / Z)}px system-ui`; ctx.textAlign = 'center';
       const label = ({center: 'Enfermera: acércate al mostrador para curar', shop: 'Dependiente: acércate para comprar', gym: `Líder ${I.leader || ''}: acércate para retarlo`, league: 'Acércate para entrar a la Liga'})[I.role];
       const tw = ctx.measureText(label).width + 12;
       ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(W / 2 - tw / 2, H - 26, tw, 18);
@@ -279,11 +281,11 @@ const WorldMap = (() => {
     // letreros de los edificios con función
     if (G.roles && !G.interior) for (const [role, b] of Object.entries(G.roles)) {
       const cx = ((b.x0 + b.x1 + 1) / 2) * T - camX, cy = b.y0 * T - camY;
-      ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'center';
+      ctx.font = `bold ${Math.round(12 / Z)}px system-ui`; ctx.textAlign = 'center';
       const label = ({center: 'Centro Pokémon', shop: 'Tienda', gym: 'Gimnasio', league: 'Liga Pokémon'})[role];
-      const tw = ctx.measureText(label).width + 24;
-      ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(cx - tw / 2, cy - 2, tw, 18);
-      ctx.fillStyle = '#fff'; ctx.fillText(ROLE[role].icon + ' ' + label, cx, cy + 12);
+      const tw = ctx.measureText(label).width + 24 / Z;
+      ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(cx - tw / 2, cy - 2 / Z, tw, 18 / Z);
+      ctx.fillStyle = '#fff'; ctx.fillText(ROLE[role].icon + ' ' + label, cx, cy + 12 / Z);
     }
     // salidas
     const t = performance.now() / 300;
@@ -293,9 +295,9 @@ const WorldMap = (() => {
       ctx.fillRect(sx, sy, e[3] * T, e[4] * T);
       const z = D.zones[e[0]];
       if (z) {
-        ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+        ctx.font = `bold ${Math.round(11 / Z)}px system-ui`; ctx.textAlign = 'center';
         const lx = clamp(sx + e[3] * T / 2, 50, W - 50), ly = clamp(sy + e[4] * T / 2 + 4, 14, H - 6);
-        ctx.fillStyle = 'rgba(0,0,0,.6)'; const tw = ctx.measureText(z.n).width + 10; ctx.fillRect(lx - tw / 2, ly - 11, tw, 15);
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; const tw = ctx.measureText(z.n).width + 10 / Z; ctx.fillRect(lx - tw / 2, ly - 11 / Z, tw, 15 / Z);
         ctx.fillStyle = '#ffcb3d'; ctx.fillText('→ ' + z.n, lx, ly);
       }
     }
@@ -304,12 +306,12 @@ const WorldMap = (() => {
     if (lead && follower.length) {
       const f = follower[0];
       const img = dexCache(lead);
-      const fs = art && art.cv ? 48 : 32;
+      const fs = art && art.cv ? 64 : 32;
       if (img.complete) ctx.drawImage(img, f[0] * T - camX + 8 - fs / 2, f[1] * T - camY + 14 - fs, fs, fs);
     }
     // jugador
     const big = !!(art && art.cv);   // en el mundo original los personajes van a escala 2
-    const sc = big ? 2 : 1;
+    const sc = big ? 3 : 1;
     Avatar.draw(ctx, Math.round(fx * T - camX - (sc - 1) * 8), Math.round(fy * T - camY - 6 - (sc - 1) * 16), sc, S.avatar ?? 0, moving ? (frame >> 3) % 2 : 0);
     if (art && art.cv) WorldArt.front(ctx, fy * T + T, camX, camY, W, H, {x: fx * T});
     // destino
@@ -411,10 +413,12 @@ const WorldMap = (() => {
     }
     return {x: G.m.sp[0], y: G.m.sp[1]};
   }
+  function zoom() { return !G.interior && typeof WorldArt !== 'undefined' && WorldArt.has(zoneId) ? 0.55 : 1; }
   function tap(e) {
-    const b = cv.getBoundingClientRect(), W = cv.clientWidth, H = cv.clientHeight;
+    const b = cv.getBoundingClientRect(), W = cv.clientWidth / zoom(), H = cv.clientHeight / zoom();
     const [camX, camY] = cam(W, H);
-    const tx = Math.floor((e.clientX - b.left + camX) / T), ty = Math.floor((e.clientY - b.top + camY) / T);
+    const Z = zoom();
+    const tx = Math.floor(((e.clientX - b.left) / Z + camX) / T), ty = Math.floor(((e.clientY - b.top) / Z + camY) / T);
     path = route(tx, ty);
     kick();
   }
