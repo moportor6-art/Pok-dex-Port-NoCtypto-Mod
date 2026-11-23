@@ -1,7 +1,7 @@
 /* Pokédex Idle Offline — resurrección fan. Todo se calcula y se guarda en el dispositivo. */
 'use strict';
 const D = window.GAME_DATA;
-const VERSION = '0.4';
+const VERSION = '0.5';
 const SAVE_KEY = 'pdxidle_offline_save';
 const OFFLINE_CAP_MS = 8 * 3600e3;
 const BATTLE_SEC = 8;          // duración media de un encuentro (para el progreso fuera de línea)
@@ -596,6 +596,55 @@ function wildFor(zoneId) {
   for (const e of pool) { r -= e[1]; if (r <= 0) { pick = e; break; } }
   return makeMon(pick[0], rnd(pick[2], pick[3]), {shiny: Math.random() < SHINY_ODDS * (boostOn('shiny') ? 2 : 1)});
 }
+// ---------- legendarios ----------
+// Encuentros especiales: se ven brillando en el mapa de su zona cuando cumples el requisito; si no lo atrapas, vuelve a aparecer.
+const LEGENDS = [
+  {s: 'articuno', z: 'seafoam_islands', lv: 50, need: ['kanto', 7]}, {s: 'zapdos', z: 'power_plant', lv: 50, need: ['kanto', 7]},
+  {s: 'moltres', z: 'victory_road', lv: 50, need: ['kanto', 8]}, {s: 'mewtwo', z: 'cerulean_cave', lv: 70, need: ['league', 'kanto']},
+  {s: 'lugia', z: 'whirl_islands_depths', lv: 45, need: ['johto', 7]}, {s: 'ho_oh', z: 'bell_tower_roof', lv: 45, need: ['johto', 8]},
+  {s: 'celebi', z: 'ilex_forest', lv: 30, need: ['league', 'johto']},
+  {s: 'regirock', z: 'desert_ruins', lv: 40, need: ['hoenn', 7]}, {s: 'regice', z: 'island_cave', lv: 40, need: ['hoenn', 7]},
+  {s: 'registeel', z: 'ancient_tomb', lv: 40, need: ['hoenn', 7]}, {s: 'kyogre', z: 'seafloor_cavern', lv: 45, need: ['hoenn', 7]},
+  {s: 'groudon', z: 'terra_cave', lv: 45, need: ['hoenn', 7]}, {s: 'rayquaza', z: 'sky_pillar_5f', lv: 70, need: ['league', 'hoenn']},
+  {s: 'jirachi', z: 'mirage_island', lv: 5, need: ['league', 'hoenn']}, {s: 'mew', z: 'faraway_island', lv: 30, need: ['league', 'hoenn']},
+  {s: 'deoxys', z: 'altering_cave', lv: 30, need: ['all']},
+];
+// Errantes: aparecen de vez en cuando mientras cazas en cualquier zona de su región
+const ROAMERS = [
+  {s: 'raikou', r: 'johto', lv: 40, need: ['johto', 4]}, {s: 'entei', r: 'johto', lv: 40, need: ['johto', 4]}, {s: 'suicune', r: 'johto', lv: 40, need: ['johto', 4]},
+  {s: 'latias', r: 'hoenn', lv: 40, need: ['hoenn', 5]}, {s: 'latios', r: 'hoenn', lv: 40, need: ['hoenn', 5]},
+];
+function badgesIn(reg) { return Object.keys(GYMS).filter(z => D.zones[z].r === reg && S.badges[z]).length; }
+function needOk(n) {
+  if (n[0] === 'league') return !!(S.league && S.league[n[1]]);
+  if (n[0] === 'all') return ['kanto', 'johto', 'hoenn'].every(k => S.league && S.league[k]);
+  return badgesIn(n[0]) >= n[1];
+}
+function needText(n) {
+  if (n[0] === 'league') return `ser Campeón de la ${LEAGUES[n[1]].n}`;
+  if (n[0] === 'all') return 'ser Campeón de las tres Ligas';
+  return `${n[1]} medallas de ${({kanto: 'Kanto', johto: 'Johto', hoenn: 'Hoenn'})[n[0]]}`;
+}
+function legendHere(zone) { return LEGENDS.find(L => L.z === zone && D.zones[zone] && !(S.legends || {})[L.s] && D.species[L.s]); }
+function roamerFor(zone) {
+  const z = D.zones[zone]; if (!z || !z.h) return null;
+  const cand = ROAMERS.filter(R => R.r === z.r && !(S.legends || {})[R.s] && needOk(R.need));
+  if (!cand.length || Math.random() > 1 / 250) return null;
+  const R = cand[Math.floor(Math.random() * cand.length)];
+  return makeMon(R.s, R.lv, {iv: [0, 0, 0, 0, 0, 0].map(() => rnd(15, 31))});
+}
+function legendBattle(L) {
+  if (!needOk(L.need)) return toast(`Sientes una presencia muy poderosa… Vuelve cuando tengas ${needText(L.need)}.`);
+  if (firstHealthy(S.team) < 0) return toast('Tu equipo está debilitado.');
+  if (!pickBall({shiny: false})) return toast('Necesitas Pokébolas para intentar capturarlo.');
+  S.hunting = false; clearTimeout(huntTimer);
+  const F = Frames(true);
+  Sound.music('battle');
+  const mon = makeMon(L.s, L.lv, {iv: [0, 0, 0, 0, 0, 0].map(() => rnd(15, 31))});
+  const r = wildEncounter(F, {mon});
+  play(F, () => { if (r.caught) Sound.jingle('champion'); save(); renderAll(); setTimeout(() => showScreen('map'), 900); });
+}
+
 function shouldCatch(w) {
   if (w.shiny) return S.policy !== 'none';
   if (S.policy === 'all') return true;
@@ -603,7 +652,7 @@ function shouldCatch(w) {
   return false;
 }
 function pickBall(w) {
-  if (w.shiny) for (const b of ['ultra_ball', 'great_ball', 'poke_ball', S.ball]) if (S.items[b] > 0) return b;
+  if (w.shiny || (w.s && sp(w.s).leg)) for (const b of ['ultra_ball', 'great_ball', 'poke_ball', S.ball]) if (S.items[b] > 0) return b;
   if (S.items[S.ball] > 0) return S.ball;
   for (const b of ['poke_ball', 'great_ball', 'ultra_ball']) if (S.items[b] > 0) return b;
   return null;
@@ -621,23 +670,25 @@ function autoPotion(m) {
 }
 
 // Un encuentro salvaje completo
-function wildEncounter(F) {
+function wildEncounter(F, forced) {
   const z = D.zones[S.zone];
-  const w = wildFor(S.zone);
+  const w = forced ? forced.mon : roamerFor(S.zone) || wildFor(S.zone);
   if (!w) return {stop: 'Aquí no hay Pokémon salvajes.'};
   let ai = firstHealthy(S.team);
   if (ai < 0) return {stop: 'Tu equipo está debilitado.'};
   registerSeen(w.s);
   S.stats.battles++;
   F.me = S.team[ai]; F.foe = w;
-  F.snap(`¡Un ${monName(w)} salvaje (Nv. ${w.lv}) apareció!${w.shiny ? ' ✨' : ''}`, {appear: 1});
-  const wantCatch = shouldCatch(w);
+  const isLegend = sp(w.s).leg === 1;
+  F.snap(isLegend ? `¡El legendario ${monName(w)} (Nv. ${w.lv}) apareció!` : `¡Un ${monName(w)} salvaje (Nv. ${w.lv}) apareció!${w.shiny ? ' ✨' : ''}`, {appear: 1});
+  const wantCatch = isLegend ? true : shouldCatch(w);
+  const maxBalls = isLegend ? 12 : 3;
   let ballsThrown = 0, caught = false;
   for (let turn = 0; turn < 60; turn++) {
     const me = S.team[ai];
     F.me = me;
     // ¿lanzar Pokébola?
-    if (wantCatch && w.hp > 0 && (w.hp <= maxHp(w) * 0.5 || turn >= 3 || w.shiny || w.st === 'slp' || w.st === 'par') && ballsThrown < 3) {
+    if (wantCatch && w.hp > 0 && (w.hp <= maxHp(w) * 0.5 || turn >= 3 || w.shiny || w.st === 'slp' || w.st === 'par' || isLegend) && ballsThrown < maxBalls) {
       const ball = pickBall(w);
       if (ball) {
         S.items[ball]--; ballsThrown++;
@@ -650,7 +701,7 @@ function wildEncounter(F) {
         F.snap(`¡Lanzas una ${itemName(ball)}... ${monName(w)} se escapó!`, {ball: 1});
       }
     }
-    exchange(me, w, F, {foeName: `${monName(w)} salvaje`, catching: wantCatch && !!pickBall(w), spare: () => wantCatch && pickBall(w) && ballsThrown < 3});
+    exchange(me, w, F, {foeName: `${monName(w)} salvaje`, catching: wantCatch && !!pickBall(w), spare: () => wantCatch && pickBall(w) && ballsThrown < maxBalls});
     if (w.hp <= 0) break;
     if (me.hp <= 0) {
       F.snap(`¡${monName(me)} se debilitó!`, {faint: 'me'});
@@ -663,6 +714,7 @@ function wildEncounter(F) {
   endBattle([...S.team, w]);
   const res = {w, caught, money: 0};
   if (caught) {
+    if (isLegend) { S.legends = S.legends || {}; S.legends[w.s] = 1; }
     registerCaught(w.s, w.shiny);
     S.stats.caught++; if (w.shiny) S.stats.shinies++;
     w.hp = maxHp(w);
@@ -1070,6 +1122,7 @@ function renderMap() {
   const encs = z.h ? z.E.slice(0, 12).map(e => `<img class="mini" style="width:40px;height:40px;${S.seen[e[0]] ? '' : 'filter:brightness(0) opacity(.5)'}" title="${S.seen[e[0]] ? sp(e[0]).n : '???'}" src="${dexImg(e[0])}">`).join('') : '';
   el.innerHTML = `<h2>${z.n}</h2>
     ${WorldMap.has(S.zone) ? `<canvas id="worldCv"></canvas><div class="small" style="margin:4px 0 8px">Toca el mapa para caminar. Las zonas amarillas llevan a otro lugar; entra a los edificios con letrero por su puerta.${z.h ? ' En la hierba alta pueden salir Pokémon salvajes.' : ''}</div>` : ''}
+    ${legendHere(S.zone) ? `<div class="card" style="border:1px solid var(--acc)">✨ Algo brilla en esta zona… ${needOk(legendHere(S.zone).need) ? 'Camina hasta el brillo para enfrentarlo.' : `Necesitas ${needText(legendHere(S.zone).need)}.`}</div>` : ''}
     <div class="card"><div>${zoneLabel(S.zone)}</div>${encs ? `<div style="margin-top:6px">${encs}</div>` : ''}
       <div class="actions">
         ${z.k === 'town' ? '<button class="btn" id="mHeal">✚ Centro Pokémon</button><button class="btn" id="mShop">🛒 Tienda</button>' : ''}
@@ -1081,7 +1134,10 @@ function renderMap() {
     <div class="list">${z.x.filter(id => D.zones[id]).map(id => `<div class="card" data-z="${id}">→ ${zoneLabel(id)}</div>`).join('')}</div>
     ${flyTo.length ? `<h3>Volar a un pueblo visitado</h3><div class="list">${flyTo.map(id => `<div class="card" data-z="${id}">✈ ${zoneLabel(id)}</div>`).join('')}</div>` : ''}`;
   el.querySelectorAll('[data-z]').forEach(c => c.onclick = () => travel(c.dataset.z));
+  const LG = legendHere(S.zone);
   if ($('#worldCv')) WorldMap.mount($('#worldCv'), S.zone, {
+    legend: LG && LG.s,
+    onLegend: () => legendBattle(LG),
     onExit: e => travel(e[0], [e[5], e[6]]),
     onDoor: role => {
       if (role === 'center') { healAll(); Sound.sfx('heal'); save(); toast('Centro Pokémon: ¡tu equipo está como nuevo!'); }
@@ -1121,6 +1177,7 @@ function dexSheet(id) {
     <div class="small">Nº ${s.d} · ${S.caught[id] ? 'Capturado' : 'Visto'}</div></div></div>
     <table class="stats">${s.b.map((v, k) => `<tr><td>${STAT[k]}</td><td class="v">${v}</td></tr>`).join('')}</table>
     <div class="small">Ratio de captura: ${s.c}</div>
+    ${s.leg ? `<div class="small">Legendario. ${(() => { const L = LEGENDS.find(x => x.s === id), R = ROAMERS.find(x => x.s === id); return L ? `Aparece en ${D.zones[L.z].n} (necesitas ${needText(L.need)}).` : R ? `Recorre las zonas de ${R.r === 'johto' ? 'Johto' : 'Hoenn'} (necesitas ${needText(R.need)}).` : ''; })()}</div>` : ''}
     <h3>Dónde encontrarlo</h3><div class="small">${where.join(' · ') || 'Solo por evolución o en zonas especiales.'}</div>
     <div class="actions"><button class="btn" onclick="closeSheet()">Cerrar</button></div>`);
 }

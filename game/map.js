@@ -6,7 +6,8 @@ const WorldMap = (() => {
   let cv = null, ctx = null, zoneId = null, G = null, M = null;
   let px = 0, py = 0, fx = 0, fy = 0;          // posición en casillas (y animada)
   let path = [], moving = false, frame = 0, raf = 0, last = 0, follower = [];
-  let onExit = null, onStep = null, onDoor = null, ignoreExit = null, ignoreDoor = null;
+  let onExit = null, onStep = null, onDoor = null, onLegend = null, legend = null, ignoreExit = null, ignoreDoor = null;
+  let inside = null;   // {role, town, G: mapa de fuera, kind, door}
   const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) >>> 0; h = (h ^ (h >>> 13)) * 1274126177 >>> 0; return (h ^ (h >>> 16)) >>> 0; };
 
   function grid(id) {
@@ -106,6 +107,25 @@ const WorldMap = (() => {
     water: {floor: ['#4a9fe0', '#4699da', '#50a6e6'], tall: '#3a86c8', tall2: '#7cc4f5', solidA: '#c9b48a', solidB: '#a8946c', trunk: '#7a6a50'},
     dungeon: {floor: ['#5b4f7a', '#564a74', '#615580'], tall: '#4a3f66', tall2: '#3c3254', solidA: '#2b2545', solidB: '#1f1a33', trunk: '#120f20'},
   };
+  // Interiores: cuartos generados para cada edificio con función
+  function interior(role, town) {
+    const big = role === 'gym' || role === 'league';
+    const w = 13, h = big ? 16 : 10;
+    const rows = Array.from({length: h}, (_, y) => Array.from({length: w}, (_, x) => (y < 2 || x === 0 || x === w - 1 || y === h - 1) ? 1 : 0));
+    const mat = [6, h - 2];
+    rows[h - 1][6] = 1;
+    let npc, act;
+    if (role === 'center' || role === 'shop') {
+      for (let x = 3; x <= 9; x++) rows[3][x] = 1;           // mostrador
+      npc = [6, 2]; act = [6, 4];
+      if (role === 'shop') for (let y = 5; y <= 7; y++) { rows[y][1] = 1; rows[y][2] = 1; rows[y][10] = 1; rows[y][11] = 1; }   // estantes
+      else { rows[2][2] = rows[2][3] = 1; rows[6][1] = rows[6][2] = 1; rows[6][10] = rows[6][11] = 1; }                      // máquina y sillones
+    } else {
+      npc = [6, 2]; act = [6, 3];
+      for (let y = 5; y < h - 3; y += 3) { rows[y][3] = 1; rows[y][9] = 1; }               // estatuas
+    }
+    return {w, h, rows, m: {sp: mat, ex: []}, interior: {role, town, mat, npc, act}};
+  }
   const ROLE = {center: {roof: '#e5484d', icon: '✚'}, shop: {roof: '#3d6fd6', icon: '🛒'}, gym: {roof: '#f39a2b', icon: '🏅'}, league: {roof: '#7a4fd6', icon: '🏆'}};
   function townTile(x, y, sx, sy) {
     const P = PAL.town;
@@ -148,8 +168,27 @@ const WorldMap = (() => {
       else if ((x - c.x0) % 3 === 1) { ctx.fillStyle = P.win; ctx.fillRect(sx + 3, sy + 4, 10, 7); ctx.fillStyle = '#fff'; ctx.fillRect(sx + 3, sy + 4, 10, 1); }
     }
   }
+  const INT = {center: ['#f6e3ea', '#efd3de', '#d66b8a'], shop: ['#e3ecf6', '#d3e0ef', '#4f7fc4'], gym: ['#e9dcc4', '#dccdb0', '#b8862c'], league: ['#d9d2ee', '#cbc2e6', '#6a4fc4']};
+  function interiorTile(x, y, sx, sy) {
+    const I = G.interior, C = INT[I.role], h = G.h, w = G.w;
+    if (!solid(x, y) || (x === I.mat[0] && y === h - 1)) {
+      ctx.fillStyle = C[(x + y) % 2]; ctx.fillRect(sx, sy, T, T);
+      if (x === I.mat[0] && y >= I.mat[1]) { ctx.fillStyle = '#c0504d'; ctx.fillRect(sx + 1, sy + 3, T - 2, T - 6); }
+      if ((I.role === 'gym' || I.role === 'league') && x === 6 && y > 3 && y < h - 2) { ctx.fillStyle = 'rgba(180,40,40,.35)'; ctx.fillRect(sx, sy, T, T); }
+      return;
+    }
+    if (y < 2) { ctx.fillStyle = C[2]; ctx.fillRect(sx, sy, T, T); ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fillRect(sx, sy + 3 + (y * 5), T, 2); return; }
+    if (x === 0 || x === w - 1 || y === h - 1) { ctx.fillStyle = '#3b3550'; ctx.fillRect(sx, sy, T, T); return; }
+    ctx.fillStyle = C[0]; ctx.fillRect(sx, sy, T, T);
+    if (y === 3 && (I.role === 'center' || I.role === 'shop')) { ctx.fillStyle = '#a7774a'; ctx.fillRect(sx, sy + 2, T, T - 4); ctx.fillStyle = '#c99868'; ctx.fillRect(sx, sy + 2, T, 3); return; }
+    if (I.role === 'shop') { ctx.fillStyle = '#8a6a48'; ctx.fillRect(sx + 1, sy, T - 2, T); ctx.fillStyle = ['#e5484d', '#46c46b', '#f0c330', '#4f8cff'][(x * 3 + y) % 4]; ctx.fillRect(sx + 3, sy + 3, 4, 4); ctx.fillRect(sx + 9, sy + 9, 4, 4); return; }
+    if (I.role === 'center' && y === 2) { ctx.fillStyle = '#ddd'; ctx.fillRect(sx + 1, sy + 2, T - 2, T - 4); ctx.fillStyle = '#e5484d'; ctx.fillRect(sx + 5, sy + 5, 6, 6); return; }
+    if (I.role === 'center') { ctx.fillStyle = '#4f8cff'; ctx.fillRect(sx + 1, sy + 4, T - 2, T - 6); return; }
+    ctx.fillStyle = '#8f8aa8'; ctx.fillRect(sx + 4, sy + 6, 8, 10); ctx.fillStyle = '#b9b4cf'; ctx.beginPath(); ctx.arc(sx + 8, sy + 6, 5, 0, 7); ctx.fill();   // estatua
+  }
   function tile(x, y, sx, sy) {
     const P = PAL[KIND] || PAL.route;
+    if (G.interior) return interiorTile(x, y, sx, sy);
     if (KIND === 'town' && G.bld) return townTile(x, y, sx, sy);
     if (!solid(x, y)) {
       ctx.fillStyle = P.floor[hash(x, y) % 3]; ctx.fillRect(sx, sy, T, T);
@@ -183,15 +222,32 @@ const WorldMap = (() => {
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#11142a'; ctx.fillRect(0, 0, W, H);
-    const camX = clamp(fx * T + T / 2 - W / 2, Math.min(0, G.w * T - W), Math.max(0, G.w * T - W));
-    const camY = clamp(fy * T + T / 2 - H / 2, Math.min(0, G.h * T - H), Math.max(0, G.h * T - H));
+    const [camX, camY] = cam(W, H);
     const x0 = Math.floor(camX / T), y0 = Math.floor(camY / T);
     for (let y = y0; y <= y0 + Math.ceil(H / T) + 1; y++) for (let x = x0; x <= x0 + Math.ceil(W / T) + 1; x++) {
       if (x < 0 || y < 0 || x >= G.w || y >= G.h) continue;
       tile(x, y, Math.round(x * T - camX), Math.round(y * T - camY));
     }
+    // personaje del interior
+    if (G.interior) {
+      const I = G.interior, nx = I.npc[0] * T - camX, ny = I.npc[1] * T - camY - 6;
+      const who = ({center: 2, shop: 4})[I.role] ?? (I.leader || I.role);
+      Avatar.draw(ctx, Math.round(nx), Math.round(ny), 1, who);
+      ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'center';
+      const label = ({center: 'Enfermera: acércate al mostrador para curar', shop: 'Dependiente: acércate para comprar', gym: `Líder ${I.leader || ''}: acércate para retarlo`, league: 'Acércate para entrar a la Liga'})[I.role];
+      const tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(W / 2 - tw / 2, H - 26, tw, 18);
+      ctx.fillStyle = '#fff'; ctx.fillText(label, W / 2, H - 13);
+    }
+    // legendario brillando
+    if (legend && !G.interior) {
+      const lx = legend.x * T - camX, ly = legend.y * T - camY, k = performance.now() / 200;
+      ctx.fillStyle = `rgba(255,230,120,${0.35 + 0.25 * Math.sin(k)})`; ctx.beginPath(); ctx.arc(lx + 8, ly + 8, 14 + 3 * Math.sin(k), 0, 7); ctx.fill();
+      const im = dexCache({s: legend.s}); if (im.complete) ctx.drawImage(im, lx - 16, ly - 22, 48, 48);
+      if (!raf) requestAnimationFrame(() => { if (!raf) draw(); });
+    }
     // letreros de los edificios con función
-    if (G.roles) for (const [role, b] of Object.entries(G.roles)) {
+    if (G.roles && !G.interior) for (const [role, b] of Object.entries(G.roles)) {
       const cx = ((b.x0 + b.x1 + 1) / 2) * T - camX, cy = b.y0 * T - camY;
       ctx.font = 'bold 12px system-ui'; ctx.textAlign = 'center';
       const label = ({center: 'Centro Pokémon', shop: 'Tienda', gym: 'Gimnasio', league: 'Liga Pokémon'})[role];
@@ -224,6 +280,11 @@ const WorldMap = (() => {
     Avatar.draw(ctx, Math.round(fx * T - camX), Math.round(fy * T - camY - 6), 1, S.avatar ?? 0, moving ? (frame >> 3) % 2 : 0);
     // destino
     if (path.length) { const p = path[path.length - 1]; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p[0] * T - camX + 2, p[1] * T - camY + 2, T - 4, T - 4); }
+  }
+  function cam(W, H) {
+    const cx = G.w * T <= W ? (G.w * T - W) / 2 : clamp(fx * T + T / 2 - W / 2, 0, G.w * T - W);
+    const cy = G.h * T <= H ? (G.h * T - H) / 2 : clamp(fy * T + T / 2 - H / 2, 0, G.h * T - H);
+    return [cx, cy];
   }
   const imgCache = {};
   function dexCache(m) { const k = m.s + (m.shiny ? 's' : ''); if (!imgCache[k]) { imgCache[k] = new Image(); imgCache[k].src = dexImg(m.s, m.shiny); imgCache[k].onload = draw; } return imgCache[k]; }
@@ -263,10 +324,18 @@ const WorldMap = (() => {
         fx = tx; fy = ty; follower.unshift([px, py]); follower.length = Math.min(follower.length, 3);
         px = tx; py = ty; path.shift();
         S.pos = {zone: zoneId, x: px, y: py};
+        if (G.interior) {
+          const I = G.interior;
+          if (px === I.mat[0] && py === I.mat[1] + 0 && ignoreDoor !== 'mat') { leave(); return; }
+          if (py !== I.mat[1]) ignoreDoor = null;
+          if (px === I.act[0] && py === I.act[1]) { path = []; moving = false; draw(); onDoor && onDoor(I.role, true); raf = 0; return; }
+          draw(); raf = path.length ? requestAnimationFrame(loop) : 0; if (!raf) { moving = false; draw(); } return;
+        }
+        if (legend && px === legend.x && py === legend.y) { path = []; moving = false; draw(); onLegend && onLegend(); raf = 0; return; }
         const ex = exitAt(px, py);
         if (!ex) ignoreExit = null;
         const door = G.roles && Object.entries(G.roles).find(([, b]) => b.door && b.door[0] === px && b.door[1] === py);
-        if (door && door[0] !== ignoreDoor) { ignoreDoor = door[0]; path = []; moving = false; draw(); onDoor && onDoor(door[0]); raf = 0; return; }
+        if (door && door[0] !== ignoreDoor) { ignoreDoor = door[0]; path = []; moving = false; enter(door[0], door[1]); raf = 0; return; }
         if (!door) ignoreDoor = null;
         if (ex && ex !== ignoreExit) { path = []; moving = false; draw(); onExit && onExit(ex); raf = 0; return; }
         if (onStep && onStep(px, py, tall(px, py))) { path = []; }
@@ -279,9 +348,11 @@ const WorldMap = (() => {
   function kick() { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } }
   function mount(canvas, zid, opts) {
     cv = canvas; ctx = cv.getContext('2d');
-    onExit = opts.onExit; onStep = opts.onStep; onDoor = opts.onDoor;
+    onExit = opts.onExit; onStep = opts.onStep; onDoor = opts.onDoor; onLegend = opts.onLegend; legend = null;
     const r = cv.getBoundingClientRect();
     cv.width = Math.round(r.width * devicePixelRatio); cv.height = Math.round(r.height * devicePixelRatio);
+    if (inside && inside.town !== zid) inside = null;
+    if (inside) { cv.onpointerdown = tap; draw(); return true; }
     if (zid !== zoneId || !G) {
       zoneId = zid; G = grid(zid); path = []; follower = [];
       if (!G) return false;
@@ -292,18 +363,48 @@ const WorldMap = (() => {
       fx = px; fy = py;
       ignoreExit = exitAt(px, py) || null;   // si apareces sobre una salida, no te devuelve al instante
     }
-    cv.onpointerdown = e => {
-      const b = cv.getBoundingClientRect(), W = cv.clientWidth, H = cv.clientHeight;
-      const camX = clamp(fx * T + T / 2 - W / 2, Math.min(0, G.w * T - W), Math.max(0, G.w * T - W));
-      const camY = clamp(fy * T + T / 2 - H / 2, Math.min(0, G.h * T - H), Math.max(0, G.h * T - H));
-      const tx = Math.floor((e.clientX - b.left + camX) / T), ty = Math.floor((e.clientY - b.top + camY) / T);
-      path = route(tx, ty);
-      kick();
-    };
+    if (opts.legend && G) legend = Object.assign({s: opts.legend}, spot());
+    cv.onpointerdown = tap;
     draw();
     return true;
   }
+  // un lugar libre cerca del centro del mapa (para el legendario)
+  function spot() {
+    const cx = G.w >> 1, cy = G.h >> 1;
+    for (let r = 0; r < Math.max(G.w, G.h); r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = cx + dx, y = cy + dy;
+      if (!solid(x, y) && !exitAt(x, y)) return {x, y};
+    }
+    return {x: G.m.sp[0], y: G.m.sp[1]};
+  }
+  function tap(e) {
+    const b = cv.getBoundingClientRect(), W = cv.clientWidth, H = cv.clientHeight;
+    const [camX, camY] = cam(W, H);
+    const tx = Math.floor((e.clientX - b.left + camX) / T), ty = Math.floor((e.clientY - b.top + camY) / T);
+    path = route(tx, ty);
+    kick();
+  }
+  // Entrar y salir de los edificios
+  function enter(role, b) {
+    inside = {role, town: zoneId, G, kind: KIND, door: b.door};
+    G = interior(role, zoneId);
+    if (role === 'gym' && GYMS[zoneId]) G.interior.leader = GYMS[zoneId].l;
+    KIND = 'interior';
+    [px, py] = G.interior.mat; fx = px; fy = py; follower = []; path = [];
+    ignoreDoor = 'mat';
+    Sound.sfx('door');
+    draw();
+  }
+  function leave() {
+    if (!inside) return;
+    G = inside.G; KIND = inside.kind;
+    [px, py] = inside.door; fx = px; fy = py; follower = []; path = [];
+    ignoreDoor = inside.role; inside = null;
+    S.pos = {zone: zoneId, x: px, y: py};
+    Sound.sfx('door');
+    draw();
+  }
   // Coloca al jugador al llegar a otra zona
-  function place(zid, x, y) { S.pos = {zone: zid, x, y}; zoneId = null; }
+  function place(zid, x, y) { S.pos = {zone: zid, x, y}; zoneId = null; inside = null; }
   return {mount, place, roles: id => { const g = grid(id); return g && g.roles ? Object.keys(g.roles) : []; }, door: (id, r) => { const g = grid(id); return g && g.roles && g.roles[r] ? g.roles[r].door : null; }, walkTo: (x, y) => { path = route(x, y); kick(); }, has: id => !!(window.GAME_MAPS && window.GAME_MAPS[id]), stop: () => { path = []; }};
 })();
