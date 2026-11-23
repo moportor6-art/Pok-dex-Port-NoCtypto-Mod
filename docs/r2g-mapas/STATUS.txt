@@ -1,0 +1,8 @@
+Mapas con el arte original (v0.6)
+- Referencias: vistas fly-world del original (LOD 4, 1/4 de escala) de Ruta 1, Pueblo Paleta, Ciudad Verde, Ruta 101, Ciudad Trigal y Ciudad Férrica.
+- Iteraciones en review/: v1 (primera versión) -> v2 (sin capa de sombra, gradación de color) -> v3 (fachadas y agua del original)
+  -> v4 (edificios compactos en Kanto, gradación por región).
+- Diferencias que quedan: el original mezcla bordes con autotiles (aquí bordes con ruido de 4 px); bordes de zona con
+  degradado hacia la zona vecina; algunos edificios de servicio usan la variante genérica; 91 objetos sin arte
+  (rocas empujables, escaleras de cueva, decoración de la Liga).
+- 160 de 200 zonas con arte original; el resto (interiores y mazmorras generadas por el servidor) usan el arte anterior.

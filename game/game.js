@@ -1,7 +1,7 @@
 /* Pokédex Idle Offline — resurrección fan. Todo se calcula y se guarda en el dispositivo. */
 'use strict';
 const D = window.GAME_DATA;
-const VERSION = '0.5';
+const VERSION = '0.6';
 const SAVE_KEY = 'pdxidle_offline_save';
 const OFFLINE_CAP_MS = 8 * 3600e3;
 const BATTLE_SEC = 8;          // duración media de un encuentro (para el progreso fuera de línea)

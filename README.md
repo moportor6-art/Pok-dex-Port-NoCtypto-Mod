@@ -12,10 +12,11 @@ y la partida se guarda en el dispositivo.
 - `tools/build_data.py` — regenera `data.js` (`python3 tools/build_data.py catalog.json carpeta_csv game/data.js`).
 - `android/` — la app Android (WebView a pantalla completa) con su actualizador.
 
-## Qué incluye el juego (v0.5)
+## Qué incluye el juego (v0.6)
 
 - Caza idle con progreso fuera de línea (hasta 8 h), captura con la fórmula real y Pokébolas compradas con Pokédólares.
-- **Mapas caminables** de las 200 zonas (con las colisiones del juego original y arte dibujado por código):
+- **Mapas caminables con el arte del mundo original** (160 zonas con su terreno, hierba alta, caminos, agua, árboles,
+  casas y edificios en su lugar exacto; las 40 restantes con arte propio):
   toca para caminar, cruza a otras zonas y encuentra Pokémon salvajes en la hierba alta. En los pueblos se entra
   caminando al Centro Pokémon, la Tienda, el Gimnasio y la Liga, que tienen su propio interior.
 - Legendarios: 16 se ven brillando en su zona (Articuno en las Islas Espuma, Lugia en las Islas Remolino, Rayquaza en el
@@ -50,3 +51,9 @@ La app, a los 5 segundos de abrirse, busca la última versión (también desde *
 La versión del juego está en `VERSION`.
 
 Proyecto no oficial y sin fines de lucro, no afiliado a Nintendo, Creatures Inc., GAME FREAK ni The Pokémon Company.
+
+## Herramientas
+
+- `tools/build_data.py` y `tools/build_worldmaps.py`: regeneran los datos del juego y de los mapas.
+- `tools/reference-to-game/`: método y herramientas de [reference-to-game](https://github.com/gokayfem/reference-to-game)
+  (MIT) para comparar el juego contra el original. Caso de los mapas: `docs/r2g-mapas/`.

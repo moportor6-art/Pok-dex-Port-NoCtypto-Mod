@@ -1,0 +1,23 @@
+{
+  "reference_sha256": "9a86ed829ebb1d2e8b9e9d4d45cd6495e2044d4c2be6faaf811f8260ee1e18e6",
+  "implementation_sha256": "64fff1784b0b22a2b2532eb08446c8b1b874728bed849900847b51a52a2377d8",
+  "reference_size": [
+    400,
+    304
+  ],
+  "implementation_size": [
+    400,
+    304
+  ],
+  "geometry": "Aspect preserved; letterboxed, not registered. Match camera and crop deliberately.",
+  "verdict": "human-review-required",
+  "dimensions": [
+    "palette roles and coverage",
+    "silhouette",
+    "material",
+    "lighting",
+    "camera",
+    "UI",
+    "motion in separate recording"
+  ]
+}

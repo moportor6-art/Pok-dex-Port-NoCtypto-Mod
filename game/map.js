@@ -56,6 +56,17 @@ const WorldMap = (() => {
     const hasLeague = Object.values(LEAGUES).some(L => (L.zone || 'indigo_plateau') === id);
     if (hasLeague) take('league', big);
     if (GYMS[id]) take('gym', big);
+    // edificios de servicio del mapa original (Centro, Tienda, Gimnasio): su puerta está justo debajo
+    if (typeof WorldArt !== 'undefined' && WorldArt.has(id)) {
+      const KR = {pokemon_center: 'center', poke_mart: 'shop', gym: 'gym'};
+      for (const l of WorldArt.landmarks(id)) {
+        const role = KR[l.kind]; if (!role || (role === 'gym' && !GYMS[id])) continue;
+        const x = clamp(Math.floor(l.x / 16), 0, w - 1);
+        let y = clamp(Math.floor(l.y / 16) - 1, 0, h - 1), found = null;
+        for (let k = 0; k < 5 && !found; k++) for (const dx of [0, -1, 1, -2, 2]) { const xx = x + dx, yy = y + k; if (yy < h && xx >= 0 && xx < w && rows[yy][xx] === 0) { found = [xx, yy]; break; } }
+        if (found) roles[role] = {door: found, x0: x - 3, x1: x + 3, y0: Math.max(0, found[1] - 9), y1: found[1] - 1, art: 1};
+      }
+    }
     take('center', near);
     take('shop', near);
     // si el pueblo no tiene edificio para algo, se pone un puesto cerca de la entrada
@@ -96,7 +107,19 @@ const WorldMap = (() => {
   const solid = (x, y) => x < 0 || y < 0 || x >= G.w || y >= G.h || G.rows[y][x] === 1;
   const exitAt = (x, y) => G.m.ex.find(e => x >= e[1] && x < e[1] + e[3] && y >= e[2] && y < e[2] + e[4]);
   // hierba alta: manchas decorativas en rutas (también donde salen salvajes al caminar)
-  const tall = (x, y) => KIND !== 'town' && !solid(x, y) && (hash(x >> 2, y >> 2) % 5 === 0) && (hash(x, y) % 4 !== 0);
+  function inShapes(list, tx, ty) {
+    for (const s of list || []) {
+      if (s.kind === 'ellipse') { const dx = (tx - s.cx) / s.rx, dy = (ty - s.cy) / s.ry; if (dx * dx + dy * dy <= 1) return true; }
+      else if (s.kind === 'rect') { if (tx >= s.x && tx <= s.x + s.w && ty >= s.y && ty <= s.y + s.h) return true; }
+    }
+    return false;
+  }
+  const tall = (x, y) => {
+    if (solid(x, y)) return false;
+    const za = window.WORLD_ART && WORLD_ART.zones[zoneId];
+    if (za && !G.interior) return inShapes(za.t.tall, (x + 0.5) / 2, (y + 0.5) / 2);
+    return KIND !== 'town' && (hash(x >> 2, y >> 2) % 5 === 0) && (hash(x, y) % 4 !== 0);
+  };
   let KIND = 'route';
 
   const PAL = {
@@ -224,9 +247,16 @@ const WorldMap = (() => {
     ctx.fillStyle = '#11142a'; ctx.fillRect(0, 0, W, H);
     const [camX, camY] = cam(W, H);
     const x0 = Math.floor(camX / T), y0 = Math.floor(camY / T);
-    for (let y = y0; y <= y0 + Math.ceil(H / T) + 1; y++) for (let x = x0; x <= x0 + Math.ceil(W / T) + 1; x++) {
-      if (x < 0 || y < 0 || x >= G.w || y >= G.h) continue;
-      tile(x, y, Math.round(x * T - camX), Math.round(y * T - camY));
+    const art = !G.interior && typeof WorldArt !== 'undefined' && WorldArt.has(zoneId) ? WorldArt.render(zoneId, solid, G.w, G.h) : null;
+    if (art && art.cv) {
+      const sx = Math.max(0, camX), sy = Math.max(0, camY);
+      ctx.drawImage(art.cv, sx, sy, W, H, Math.round(sx - camX), Math.round(sy - camY), W, H);
+    } else {
+      if (art && art.loading) art.loading.forEach(im => { if (!im.complete) im.onload = () => draw(); });
+      for (let y = y0; y <= y0 + Math.ceil(H / T) + 1; y++) for (let x = x0; x <= x0 + Math.ceil(W / T) + 1; x++) {
+        if (x < 0 || y < 0 || x >= G.w || y >= G.h) continue;
+        tile(x, y, Math.round(x * T - camX), Math.round(y * T - camY));
+      }
     }
     // personaje del interior
     if (G.interior) {
@@ -274,10 +304,14 @@ const WorldMap = (() => {
     if (lead && follower.length) {
       const f = follower[0];
       const img = dexCache(lead);
-      if (img.complete) ctx.drawImage(img, f[0] * T - camX - 8, f[1] * T - camY - 14, 32, 32);
+      const fs = art && art.cv ? 48 : 32;
+      if (img.complete) ctx.drawImage(img, f[0] * T - camX + 8 - fs / 2, f[1] * T - camY + 14 - fs, fs, fs);
     }
     // jugador
-    Avatar.draw(ctx, Math.round(fx * T - camX), Math.round(fy * T - camY - 6), 1, S.avatar ?? 0, moving ? (frame >> 3) % 2 : 0);
+    const big = !!(art && art.cv);   // en el mundo original los personajes van a escala 2
+    const sc = big ? 2 : 1;
+    Avatar.draw(ctx, Math.round(fx * T - camX - (sc - 1) * 8), Math.round(fy * T - camY - 6 - (sc - 1) * 16), sc, S.avatar ?? 0, moving ? (frame >> 3) % 2 : 0);
+    if (art && art.cv) WorldArt.front(ctx, fy * T + T, camX, camY, W, H, {x: fx * T});
     // destino
     if (path.length) { const p = path[path.length - 1]; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p[0] * T - camX + 2, p[1] * T - camY + 2, T - 4, T - 4); }
   }

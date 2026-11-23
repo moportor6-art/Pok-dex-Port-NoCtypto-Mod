@@ -1,0 +1,15 @@
+{
+  "status": "draft",
+  "premise": "Rehacer la exploración de Pokédex Idle Offline para que se vea como el mundo original de Pokédex Idle (vista cenital pixel art), usando los datos de terreno, objetos y casas del original. Mantener la jugabilidad actual (tocar para caminar, salidas, hierba alta, edificios).",
+  "actions": [],
+  "loop": {
+    "goal": "",
+    "success": "",
+    "failure_or_pressure": "",
+    "restart": ""
+  },
+  "mechanics": [],
+  "invariants": [],
+  "levels": [],
+  "assumptions": []
+}

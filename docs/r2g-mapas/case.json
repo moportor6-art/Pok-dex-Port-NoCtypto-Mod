@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "title": "r2g-mapas",
+  "engine": "canvas2d",
+  "brief": "Rehacer la exploración de Pokédex Idle Offline para que se vea como el mundo original de Pokédex Idle (vista cenital pixel art), usando los datos de terreno, objetos y casas del original. Mantener la jugabilidad actual (tocar para caminar, salidas, hierba alta, edificios).",
+  "references": [
+    {
+      "id": "ref-001",
+      "kind": "image",
+      "priority": 1,
+      "role": "unassigned",
+      "authority": [],
+      "notes": "",
+      "source": "route_1.png",
+      "path": "references/ref-001-route-1.png",
+      "sha256": "3ff9482141482f36eb416f2686cd85dc71385d24ba831ba45850032d0a0fd499",
+      "inspection": "uninspected"
+    },
+    {
+      "id": "ref-002",
+      "kind": "image",
+      "priority": 2,
+      "role": "unassigned",
+      "authority": [],
+      "notes": "",
+      "source": "pallet_town.png",
+      "path": "references/ref-002-pallet-town.png",
+      "sha256": "9a86ed829ebb1d2e8b9e9d4d45cd6495e2044d4c2be6faaf811f8260ee1e18e6",
+      "inspection": "uninspected"
+    },
+    {
+      "id": "ref-003",
+      "kind": "image",
+      "priority": 3,
+      "role": "unassigned",
+      "authority": [],
+      "notes": "",
+      "source": "viridian_city.png",
+      "path": "references/ref-003-viridian-city.png",
+      "sha256": "dc9ce021d8378088dfa30f7d7c7653560c9ba0fbf1f53e31a5e4cba03221a477",
+      "inspection": "uninspected"
+    },
+    {
+      "id": "ref-004",
+      "kind": "image",
+      "priority": 4,
+      "role": "unassigned",
+      "authority": [],
+      "notes": "",
+      "source": "route_101.png",
+      "path": "references/ref-004-route-101.png",
+      "sha256": "4c2e7add9628137ee5e8dd8d6339e4cada6600715412a790f176de42f1725974",
+      "inspection": "uninspected"
+    }
+  ],
+  "generation": {
+    "enabled": false,
+    "budget_usd": 0
+  },
+  "notes": []
+}

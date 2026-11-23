@@ -1,0 +1,66 @@
+{
+  "status": "locked",
+  "anchors": [
+    {
+      "reference_id": "ref-001",
+      "notes": "Ruta 1: hierba clara con motas, sendero de arena naranja, manchas de hierba alta oscura, árboles de colores en los bordes."
+    },
+    {
+      "reference_id": "ref-002",
+      "notes": "Pueblo Paleta: casas de fachada con techos de color, caminos de arena, cultivos con valla blanca, estanque con borde claro."
+    },
+    {
+      "reference_id": "ref-003",
+      "notes": "Ciudad Verde: Centro Pokémon y Tienda compactos, pinos densos, empedrado."
+    }
+  ],
+  "palette": [
+    {
+      "role": "hierba base Kanto",
+      "hex": "#65a934",
+      "reference_id": "ref-001"
+    },
+    {
+      "role": "hierba base Johto (oliva)",
+      "hex": "#74812c",
+      "reference_id": null
+    },
+    {
+      "role": "hierba base Hoenn",
+      "hex": "#49ae3a",
+      "reference_id": null
+    },
+    {
+      "role": "sendero de arena",
+      "hex": "#f0b55a",
+      "reference_id": "ref-001"
+    },
+    {
+      "role": "agua",
+      "hex": "#096bcc",
+      "reference_id": "ref-002"
+    }
+  ],
+  "identity": [
+    "Vista cenital pixel art del original (tiles de 32 px, 1 px = 1 unidad del mundo).",
+    "Mismo terreno, objetos, fachadas y edificios del original en su posición exacta."
+  ],
+  "materials": [
+    "terrain.png / water.png / props.png de cada región (meadow-v1, johto-v1, hoenn-v1) del sitio original"
+  ],
+  "lighting": "Luz cálida uniforme: gradación 'screen' por región medida contra las vistas fly-world.",
+  "camera": "Cenital, centrada en el jugador; 1 unidad = 1 px CSS; personajes a escala 2.",
+  "ui": "La del juego (letreros de salidas y de edificios, barra inferior).",
+  "motion": "Tocar para caminar (BFS sobre las colisiones originales); el Pokémon líder sigue al jugador.",
+  "nonnegotiables": [
+    "Hierba alta donde está en el original (también decide los encuentros al caminar).",
+    "Sin arte inventado donde existe el original."
+  ],
+  "avoid": [
+    "Sombras ('shade') como círculos opacos: en las vistas del original no se ven."
+  ],
+  "deliberate_changes": [
+    "Las 40 zonas interiores/mazmorras sin definición en el original usan el arte procedural anterior.",
+    "Interiores de edificios: cuartos propios (el original usa fondos pintados que no se adaptan a la cuadrícula)."
+  ]
+}
