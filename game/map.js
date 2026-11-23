@@ -5,7 +5,7 @@ const WorldMap = (() => {
   const grids = {};
   let cv = null, ctx = null, zoneId = null, G = null, M = null;
   let px = 0, py = 0, fx = 0, fy = 0;          // posición en casillas (y animada)
-  let path = [], moving = false, frame = 0, raf = 0, last = 0, follower = [];
+  let path = [], moving = false, frame = 0, raf = 0, last = 0, follower = [], dir = 'down';
   let onExit = null, onStep = null, onDoor = null, onLegend = null, legend = null, ignoreExit = null, ignoreDoor = null;
   let inside = null;   // {role, town, G: mapa de fuera, kind, door}
   const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) >>> 0; h = (h ^ (h >>> 13)) * 1274126177 >>> 0; return (h ^ (h >>> 16)) >>> 0; };
@@ -310,9 +310,9 @@ const WorldMap = (() => {
       if (img.complete) ctx.drawImage(img, f[0] * T - camX + 8 - fs / 2, f[1] * T - camY + 14 - fs, fs, fs);
     }
     // jugador
-    const big = !!(art && art.cv);   // en el mundo original los personajes van a escala 2
-    const sc = big ? 3 : 1;
-    Avatar.draw(ctx, Math.round(fx * T - camX - (sc - 1) * 8), Math.round(fy * T - camY - 6 - (sc - 1) * 16), sc, S.avatar ?? 0, moving ? (frame >> 3) % 2 : 0);
+    // entrenador del original (32x56) con su animación de caminar en 4 direcciones
+    const sc = art && art.cv ? 1 : 0.6;
+    Avatar.drawBody(ctx, fx * T - camX + 8, fy * T - camY + 15, S.avatar ?? 0, dir, moving ? 1 + ((frame >> 3) % 2) : 0, sc, draw);
     if (art && art.cv) WorldArt.front(ctx, fy * T + T, camX, camY, W, H, {x: fx * T});
     // destino
     if (path.length) { const p = path[path.length - 1]; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(p[0] * T - camX + 2, p[1] * T - camY + 2, T - 4, T - 4); }
@@ -356,6 +356,7 @@ const WorldMap = (() => {
       moving = true;
       const [tx, ty] = path[0];
       const dx = tx - fx, dy = ty - fy, d = Math.hypot(dx, dy), st = SPEED * dt;
+      if (d > 0.01) dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
       if (d <= st) {
         fx = tx; fy = ty; follower.unshift([px, py]); follower.length = Math.min(follower.length, 3);
         px = tx; py = ty; path.shift();
@@ -413,7 +414,11 @@ const WorldMap = (() => {
     }
     return {x: G.m.sp[0], y: G.m.sp[1]};
   }
-  function zoom() { return !G.interior && typeof WorldArt !== 'undefined' && WorldArt.has(zoneId) ? 0.55 : 1; }
+  // el alejamiento depende del ancho real de la pantalla (~700 unidades a lo ancho) y del ajuste del jugador
+  function zoom() {
+    if (G.interior || typeof WorldArt === 'undefined' || !WorldArt.has(zoneId)) return 1;
+    return clamp((cv.clientWidth || 380) / 700 * (S.mapZoom || 1), 0.3, 1.2);
+  }
   function tap(e) {
     const b = cv.getBoundingClientRect(), W = cv.clientWidth / zoom(), H = cv.clientHeight / zoom();
     const [camX, camY] = cam(W, H);

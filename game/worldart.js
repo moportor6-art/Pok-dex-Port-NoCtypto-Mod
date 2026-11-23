@@ -35,11 +35,21 @@ const WorldArt = (() => {
       }
     }
     // suaviza y vuelve a cortar con ruido: bordes orgánicos de 4 px
+    // desenfoque hecho a mano (el filtro del canvas no existe en todos los WebView de Android)
     const b = document.createElement('canvas'); b.width = w; b.height = h;
-    const bc = b.getContext('2d'); bc.filter = 'blur(2px)'; bc.drawImage(m, 0, 0);
+    const bc = b.getContext('2d'); bc.drawImage(m, 0, 0);
     const d = bc.getImageData(0, 0, w, h), px = d.data;
+    let A = new Float32Array(w * h), B = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) A[i] = px[i * 4 + 3] / 255;
+    const R = 2;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let y = 0; y < h; y++) { let acc = 0; const o = y * w;
+        for (let x = -R; x < w; x++) { if (x + R < w) acc += A[o + x + R]; if (x - R - 1 >= 0) acc -= A[o + x - R - 1]; if (x >= 0) B[o + x] = acc / (2 * R + 1); } }
+      for (let x = 0; x < w; x++) { let acc = 0;
+        for (let y = -R; y < h; y++) { if (y + R < h) acc += B[(y + R) * w + x]; if (y - R - 1 >= 0) acc -= B[(y - R - 1) * w + x]; if (y >= 0) A[y * w + x] = acc / (2 * R + 1); } }
+    }
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4, a = px[i + 3] / 255, t = 0.35 + (hash(x + k * 977, y) % 1000) / 1000 * 0.3;
+      const i = (y * w + x) * 4, a = A[y * w + x], t = 0.3 + (hash(x + k * 977, y) % 1000) / 1000 * 0.4;
       px[i] = px[i + 1] = px[i + 2] = 255; px[i + 3] = a > t ? 255 : 0;
     }
     bc.putImageData(d, 0, 0);

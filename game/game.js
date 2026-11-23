@@ -1,7 +1,7 @@
 /* Pokédex Idle Offline — resurrección fan. Todo se calcula y se guarda en el dispositivo. */
 'use strict';
 const D = window.GAME_DATA;
-const VERSION = '0.61';
+const VERSION = '0.7';
 const SAVE_KEY = 'pdxidle_offline_save';
 const OFFLINE_CAP_MS = 8 * 3600e3;
 const BATTLE_SEC = 8;          // duración media de un encuentro (para el progreso fuera de línea)
@@ -714,6 +714,7 @@ function wildEncounter(F, forced) {
   endBattle([...S.team, w]);
   const res = {w, caught, money: 0};
   if (caught) {
+    F.foe = null;   // ya está en la Pokébola: no volver a dibujarlo
     if (isLegend) { S.legends = S.legends || {}; S.legends[w.s] = 1; }
     registerCaught(w.s, w.shiny);
     S.stats.caught++; if (w.shiny) S.stats.shinies++;
@@ -784,7 +785,7 @@ function gymBattle(zoneId) {
   healAll();
   const foes = g.t.map(([s, lv]) => makeMon(s, lv, {shiny: false, iv: [20,20,20,20,20,20]}));
   const F = Frames(true);
-  Sound.music('battle');
+  Sound.music('battle'); setArena(GYM_ARENA[zoneId] || 'classic');
   const win = trainerBattle(`Líder ${g.l}`, foes, F);
   if (win) {
     const prize = Math.max(...g.t.map(x => x[1])) * 100;
@@ -805,7 +806,7 @@ function leagueRun(key) {
   S.hunting = false; clearTimeout(huntTimer);
   healAll();
   const F = Frames(true);
-  Sound.music('battle');
+  Sound.music('battle'); setArena('dusk');
   let won = true;
   for (const [k, foe] of L.f.entries()) {
     const team = foe.t.map(([s, lv]) => makeMon(s === 'RIVAL' ? RIVAL_ACE(S.starter) : s, lv, {shiny: false, iv: [25,25,25,25,25,25]}));
@@ -852,7 +853,7 @@ function cupBattle() {
   const round = S.cup.round + 1;
   const rv = cupRivals(round);
   const F = Frames(true);
-  Sound.music('battle');
+  Sound.music('battle'); setArena(['classic', 'power', 'ice'][round - 1] || 'classic');
   const win = trainerBattle(`${rv.name} (Ronda ${round}/3)`, rv.team, F);
   if (win) {
     S.cup.round = round;
@@ -926,7 +927,7 @@ function drawFrame(fr) {
   if (fx.caught) Sound.jingle('catch');
   if (fx.log && /subió al nivel/.test(fx.log)) Sound.jingle('levelup');
   if (fx.log && /evolucionó/.test(fx.log)) Sound.jingle('victory');
-  if (fx.trainer) { const im = $('#foeImg'); im.src = Avatar.url(fx.trainer); im.classList.remove('gone', 'faint'); $('#foeName').textContent = fx.trainer; $('#foeLv').textContent = ''; }
+  if (fx.trainer) { const im = $('#foeImg'); im.src = Avatar.standUrl(fx.trainer); im.classList.remove('gone', 'faint'); $('#foeName').textContent = fx.trainer; $('#foeLv').textContent = ''; }
   if (fx.hit) { const el = $(`#${fx.hit}Img`); el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); }
   if (fx.faint) $(`#${fx.faint}Img`).classList.add('faint');
   if (fx.ball) { const b = $('#ballFx'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on'); if (fx.caught) $('#foeImg').classList.add('gone'); }
@@ -973,13 +974,20 @@ function showScreen(name) {
 }
 function openSheet(html) { $('#sheetBox').innerHTML = html; $('#sheet').classList.remove('hidden'); }
 function closeSheet() { $('#sheet').classList.add('hidden'); }
+// Arenas del original según el lugar o el tipo del gimnasio
+const GYM_ARENA = {pewter_city: 'volcano', cerulean_city: 'ice', vermilion_city: 'power', celadon_city: 'forest', fuchsia_city: 'dusk', saffron_city: 'dusk',
+  cinnabar_island: 'volcano', viridian_city: 'volcano', violet_city: 'classic', azalea_town: 'forest', goldenrod_city: 'classic', ecruteak_city: 'dusk',
+  cianwood_city: 'power', olivine_city: 'power', mahogany_town: 'ice', blackthorn_city: 'dusk', rustboro_city: 'volcano', dewford_town: 'power',
+  mauville_city: 'power', lavaridge_town: 'volcano', petalburg_city: 'classic', fortree_city: 'classic', mossdeep_city: 'dusk', sootopolis_city: 'ice'};
+function zoneArena() { const k = (D.zones[S.zone] || {}).k; return k === 'forest' ? 'forest' : k === 'cave' || k === 'dungeon' ? 'dusk' : 'classic'; }
+function setArena(a) { const el = $('#arena'); if (el && el.dataset.a !== a) el.dataset.a = a; }
 function zoneMusic() { const k = (D.zones[S.zone] || {}).k; return k === 'town' ? 'town' : k === 'cave' || k === 'dungeon' ? 'cave' : 'route'; }
 function renderTop() {
   const z = D.zones[S.zone];
   $('#zoneName').innerHTML = `<img class="av" src="${Avatar.url(S.avatar ?? 0, 52)}" alt="">${esc(z ? z.n : S.zone)}`;
   if (!playing) Sound.music(zoneMusic());
   $('#moneyVal').textContent = fmt(S.money);
-  $('#arena').className = ({cave: 'cave', water: 'water', town: 'town', dungeon: 'dungeon'})[z && z.k] || '';
+  if (!playing) setArena(zoneArena());
 }
 function renderHuntCtl() {
   const b = $('#btnHunt');
@@ -1227,7 +1235,8 @@ function renderMore() {
       <label class="chk"><input type="checkbox" id="optMusic" ${S.audio.music ? 'checked' : ''}> Música</label> &nbsp;
       <label class="chk"><input type="checkbox" id="optSfx" ${S.audio.sfx ? 'checked' : ''}> Efectos de sonido</label>
       <div class="small" style="margin-top:6px">Volumen <input type="range" id="optVol" min="0" max="100" value="${Math.round(S.audio.vol * 100)}" style="width:60%;vertical-align:middle"></div></div>
-    <h2>Tu entrenador</h2><div class="card"><div class="avatars">${Array.from({length: Avatar.count}, (_, i) => `<img src="${Avatar.url(i)}" data-av="${i}" class="${(S.avatar ?? 0) === i ? 'on' : ''}" alt="">`).join('')}</div></div>
+    <h2>Mapa</h2><div class="card small">Zoom del mapa <input type="range" id="optZoom" min="60" max="160" step="10" value="${Math.round((S.mapZoom || 1) * 100)}" style="width:55%;vertical-align:middle"> <span id="zoomVal">${Math.round((S.mapZoom || 1) * 100)}%</span></div>
+    <h2>Tu entrenador</h2><div class="card"><div class="avatars">${Array.from({length: Avatar.count}, (_, i) => `<img src="${Avatar.url(i)}" data-av="${i}" class="${(S.avatar ?? 0) === i ? 'on' : ''}" alt="${Avatar.NAMES[Avatar.KEYS[i]]}" title="${Avatar.NAMES[Avatar.KEYS[i]]}">`).join('')}</div></div>
     <h2>Estadísticas</h2><div class="card small">Combates: ${S.stats.battles} · Capturas: ${S.stats.caught} · Shiny: ${S.stats.shinies}</div>
     <h2>Guardado</h2><div class="card"><div class="small">Tu partida se guarda sola en este teléfono. Para pasarla a otro, copia el código.</div>
       <div class="actions"><button class="btn" id="exp">Exportar</button><button class="btn" id="imp">Importar</button><button class="btn r" id="wipe">Borrar partida</button></div>
@@ -1237,6 +1246,7 @@ function renderMore() {
       Todo se juega y se guarda en este dispositivo. Los Pokédólares solo se ganan jugando.<br><br>
       Proyecto no oficial, no afiliado a Nintendo, Creatures Inc., GAME FREAK ni The Pokémon Company. Pokémon y sus nombres son marcas de sus respectivos dueños.<br>
       Créditos: sprites y diseño del juego original Pokédex Idle; datos de especies, movimientos, evoluciones y encuentros de PokéAPI.</div>`;
+  $('#optZoom').oninput = e => { S.mapZoom = e.target.value / 100; $('#zoomVal').textContent = e.target.value + '%'; save(); };
   $('#optMusic').onchange = e => { S.audio.music = e.target.checked; Sound.settings(S.audio); save(); };
   $('#optSfx').onchange = e => { S.audio.sfx = e.target.checked; Sound.settings(S.audio); save(); };
   $('#optVol').oninput = e => { S.audio.vol = e.target.value / 100; Sound.settings(S.audio); save(); };

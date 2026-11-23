@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "note": "GERADO por scripts/pvp-arena/process-arenas.py (arte do Codex image_generation, reduzida e quantizada).",
+  "size": [
+    200,
+    300
+  ],
+  "arenas": {
+    "classic": {
+      "file": "classic.png",
+      "courtTop": 0.0665,
+      "courtBottom": 0.9121,
+      "foe": 0.3245,
+      "me": 0.6986,
+      "ambient": "dust",
+      "light": 16774358,
+      "tint": 16777215
+    },
+    "ice": {
+      "file": "ice.png",
+      "courtTop": 0.0573,
+      "courtBottom": 0.9287,
+      "foe": 0.3242,
+      "me": 0.6982,
+      "ambient": "snow",
+      "light": 14218495,
+      "tint": 16777215
+    },
+    "volcano": {
+      "file": "volcano.png",
+      "courtTop": 0.0729,
+      "courtBottom": 0.9424,
+      "foe": 0.3242,
+      "me": 0.6986,
+      "ambient": "embers",
+      "light": 16756848,
+      "tint": 16777215
+    },
+    "forest": {
+      "file": "forest.png",
+      "courtTop": 0.071,
+      "courtBottom": 0.9414,
+      "foe": 0.3234,
+      "me": 0.7109,
+      "ambient": "leaves",
+      "light": 15269832,
+      "tint": 16777215
+    },
+    "power": {
+      "file": "power.png",
+      "courtTop": 0.0773,
+      "courtBottom": 0.9447,
+      "foe": 0.3242,
+      "me": 0.6982,
+      "ambient": "sparks",
+      "light": 16773258,
+      "tint": 16777215
+    },
+    "dusk": {
+      "file": "dusk.png",
+      "courtTop": 0.0729,
+      "courtBottom": 0.9424,
+      "foe": 0.3245,
+      "me": 0.6986,
+      "ambient": "wisps",
+      "light": 14203135,
+      "tint": 16777215
+    }
+  }
+}

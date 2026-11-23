@@ -21,22 +21,30 @@ button{font:inherit;cursor:pointer}
 .btn.r{background:var(--red);color:#fff}
 .btn:disabled,.big:disabled{opacity:.45}
 
-#arena{position:relative;height:230px;border-radius:12px;overflow:hidden;background:linear-gradient(#8fd3ff 0,#c9ecff 48%,#8ccf6a 48%,#6fb84f 100%)}
-#arena.cave{background:linear-gradient(#3a3340 0,#5a4f5f 48%,#7a6a58 48%,#5e5042 100%)}
-#arena.water{background:linear-gradient(#7fc6ff 0,#bfe6ff 45%,#3a8fd6 45%,#2b6fb0 100%)}
-#arena.town{background:linear-gradient(#ffd9a0 0,#ffe9c7 48%,#c9b48a 48%,#a8946c 100%)}
-#arena.dungeon{background:linear-gradient(#2b2545 0,#463b6a 48%,#4a4060 48%,#332c47 100%)}
-.side{position:absolute;display:flex;align-items:flex-end;gap:6px}
-.side.foe{top:10px;right:10px;flex-direction:row}
-.side.me{bottom:10px;left:10px}
+/* Arenas de estadio del original (200x300): rival arriba, tu Pokémon abajo */
+#arena{position:relative;height:min(400px,52vh);border-radius:12px;overflow:hidden;background:#3b6b2f url(assets/arenas/classic.png) center/100% auto;image-rendering:pixelated}
+#arena[data-a="ice"]{background-image:url(assets/arenas/ice.png)}
+#arena[data-a="volcano"]{background-image:url(assets/arenas/volcano.png)}
+#arena[data-a="forest"]{background-image:url(assets/arenas/forest.png)}
+#arena[data-a="power"]{background-image:url(assets/arenas/power.png)}
+#arena[data-a="dusk"]{background-image:url(assets/arenas/dusk.png)}
+.side{position:absolute;inset:0;pointer-events:none}
+.side .mon{position:absolute;left:50%;transform:translateX(-50%)}
+.side.foe .mon{top:calc(27% - 70px)}
+.side.me .mon{top:calc(76% - 92px)}
+.side .hpbox{position:absolute}
+.side.foe .hpbox{top:8px;left:8px}
+.side.me .hpbox{bottom:8px;right:8px}
 .mon{width:120px;height:120px;object-fit:contain;image-rendering:pixelated;transition:transform .15s,opacity .3s}
 .mon.back{width:130px;height:130px}
 .mon.hit{animation:hit .3s}
+@keyframes hitc{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 6px))}75%{transform:translateX(calc(-50% + 6px))}}
+.side .mon.hit{animation:hitc .3s}
 .mon.faint{opacity:0;transform:translateY(30px)}
+.side .mon.faint{transform:translate(-50%,30px)}
 .mon.gone{opacity:0}
 @keyframes hit{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
-.hpbox{background:rgba(255,255,255,.9);color:#222;border-radius:8px;padding:5px 8px;min-width:130px;font-size:13px}
-.side.foe .hpbox{order:-1;align-self:flex-start}
+.hpbox{background:rgba(255,255,255,.92);box-shadow:0 2px 0 rgba(0,0,0,.25);color:#222;border-radius:8px;padding:5px 8px;min-width:130px;font-size:13px}
 .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
 .lv{font-size:12px;color:#555}
 .bar{height:7px;background:#444;border-radius:4px;overflow:hidden;margin:3px 0}
@@ -44,7 +52,7 @@ button{font:inherit;cursor:pointer}
 .bar i.mid{background:#f0c330}.bar i.low{background:var(--red)}
 .xpbar{height:3px;background:#ccc;border-radius:2px;overflow:hidden}
 .xpbar i{display:block;height:100%;background:var(--blu);transition:width .4s}
-#ballFx{position:absolute;top:60px;right:70px;width:32px;height:32px;background:url(assets/items/poke-ball.png) center/contain no-repeat;image-rendering:pixelated;display:none}
+#ballFx{position:absolute;top:calc(27% - 20px);left:calc(50% - 16px);width:32px;height:32px;background:url(assets/items/poke-ball.png) center/contain no-repeat;image-rendering:pixelated;display:none}
 #ballFx.on{display:block;animation:shake .5s 3}
 @keyframes shake{0%,100%{transform:rotate(0)}30%{transform:rotate(-20deg)}70%{transform:rotate(20deg)}}
 .shiny-tag{color:#e0a800}

@@ -12,7 +12,7 @@ y la partida se guarda en el dispositivo.
 - `tools/build_data.py` — regenera `data.js` (`python3 tools/build_data.py catalog.json carpeta_csv game/data.js`).
 - `android/` — la app Android (WebView a pantalla completa) con su actualizador.
 
-## Qué incluye el juego (v0.6)
+## Qué incluye el juego (v0.7)
 
 - Caza idle con progreso fuera de línea (hasta 8 h), captura con la fórmula real y Pokébolas compradas con Pokédólares.
 - **Mapas caminables con el arte del mundo original** (160 zonas con su terreno, hierba alta, caminos, agua, árboles,
@@ -30,7 +30,8 @@ y la partida se guarda en el dispositivo.
 - 386 Pokémon (Kanto, Johto y Hoenn), 9 iniciales, evoluciones por nivel, piedra, objeto y hora del día.
 - 24 gimnasios con sus equipos originales, Liga Kanto, Johto y Hoenn, y Salón de la Fama.
 - Copa diaria contra rivales que cambian cada día.
-- Música y efectos chiptune originales (Web Audio, sin archivos) y avatares de entrenador en pixel art.
+- Música y efectos chiptune originales (Web Audio, sin archivos).
+- Los 20 entrenadores del original (caminan en 4 direcciones) y peleas sobre sus 6 arenas de estadio.
 
 ## App Android
 

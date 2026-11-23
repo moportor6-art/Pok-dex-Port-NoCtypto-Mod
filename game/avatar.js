@@ -1,65 +1,52 @@
-/* Avatares de entrenador en pixel art, dibujados por código (diseño propio). */
+/* Entrenadores del juego original: cuerpos de 32x56 con 9 cuadros (frente, espalda, lado y caminando)
+   y retratos de 48x48. */
 'use strict';
 const Avatar = (() => {
-  // c = gorra, s = camiseta, h = pelo, k = piel, p = pantalón, z = zapatos, o = contorno, w = blanco
-  const FRONT = [
-    '....oooooooo....',
-    '...occcccccco...',
-    '..occcccwwccco..',
-    '..occcccccccco..',
-    '..oooooooooooo..',
-    '..ohkkkkkkkkho..',
-    '..ohkokkkkokho..',
-    '..ohkkkkkkkkho..',
-    '...okkkkkkkko...',
-    '..ossokkkkosso..',
-    '.osssssssssssso.',
-    '.oksssssssssko..',
-    '..okssssssskoo..',
-    '...opppopppo....',
-    '...opppopppo....',
-    '...ozzo.ozzo....',
-  ];
-  const WALK = [
-    null, null, null, null, null, null, null, null, null, null, null, null, null,
-    '...opppopppo....',
-    '...ozzoopppo....',
-    '.........ozzo...',
-  ];
-  const PALETTES = [
-    {c: '#e5484d', s: '#3d6fd6', h: '#3a2a1e', k: '#f3c9a0', p: '#2c2f45', z: '#d03b3b'},
-    {c: '#2f9e5b', s: '#f0c330', h: '#6b3d1f', k: '#e8b98b', p: '#334', z: '#222'},
-    {c: '#7a4fd6', s: '#ff8fb0', h: '#1c1c28', k: '#f6d2b0', p: '#3c3c5c', z: '#7a4fd6'},
-    {c: '#f39a2b', s: '#2b2b33', h: '#f1d36b', k: '#f3c9a0', p: '#4a3b2c', z: '#f39a2b'},
-    {c: '#1f8fbf', s: '#e9e9e9', h: '#8c3d2b', k: '#c98c62', p: '#1f3b5c', z: '#1f8fbf'},
-    {c: '#222631', s: '#c43c3c', h: '#d8d8d8', k: '#f0c8a8', p: '#222631', z: '#555'},
-    {c: '#e86fc0', s: '#6fd6c9', h: '#5a2d82', k: '#8d5a3b', p: '#2d2d3d', z: '#e86fc0'},
-    {c: '#9a7b4f', s: '#5a7d3c', h: '#2a1a12', k: '#a8704a', p: '#3d3326', z: '#6b4a2c'},
-  ];
-  function pal(key) {
-    if (typeof key === 'number') return PALETTES[((key % PALETTES.length) + PALETTES.length) % PALETTES.length];
-    let h = 0; for (const ch of String(key)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    return PALETTES[h % PALETTES.length];
+  const KEYS = ['hero', 'heroine', 'breeder', 'trainer_ace_m', 'trainer_ace_f', 'trainer_youngster', 'trainer_lass', 'trainer_ranger_m',
+    'trainer_ranger_f', 'trainer_swimmer', 'trainer_surfer', 'trainer_camper', 'trainer_picnicker', 'trainer_rocker', 'trainer_idol',
+    'trainer_scholar', 'trainer_karate', 'trainer_mystic', 'trainer_biker', 'trainer_rancher'];
+  const NAMES = {hero: 'Héroe', heroine: 'Heroína', breeder: 'Criadora', trainer_ace_m: 'As', trainer_ace_f: 'As (chica)', trainer_youngster: 'Joven',
+    trainer_lass: 'Colegiala', trainer_ranger_m: 'Guardabosques', trainer_ranger_f: 'Guardabosques (chica)', trainer_swimmer: 'Nadadora',
+    trainer_surfer: 'Surfista', trainer_camper: 'Campista', trainer_picnicker: 'Dominguera', trainer_rocker: 'Rockero', trainer_idol: 'Idol',
+    trainer_scholar: 'Estudiosa', trainer_karate: 'Karateka', trainer_mystic: 'Mística', trainer_biker: 'Motorista', trainer_rancher: 'Granjero'};
+  const CW = 32, CH = 56;
+  // cuadros: abajo (0 quieto, 3-4 andando), arriba (1, 5-6), lado mirando a la izquierda (2, 7-8)
+  const FR = {down: [0, 3, 4], up: [1, 5, 6], left: [2, 7, 8], right: [2, 7, 8]};
+  const imgs = {};
+  function key(k) {
+    if (typeof k === 'number') return KEYS[((k % KEYS.length) + KEYS.length) % KEYS.length];
+    if (KEYS.includes(k)) return k;
+    let h = 0; for (const ch of String(k)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;   // líderes y rivales: un aspecto fijo por nombre
+    return KEYS[2 + h % (KEYS.length - 2)];
   }
-  function draw(ctx, x, y, scale, key, frame = 0, flip = false) {
-    const P = Object.assign({o: '#141625', w: '#ffffff'}, pal(key));
-    for (let r = 0; r < 16; r++) {
-      const row = (frame && WALK[r]) ? WALK[r] : FRONT[r];
-      for (let c = 0; c < 16; c++) {
-        const ch = row[flip ? 15 - c : c];
-        if (ch === '.') continue;
-        ctx.fillStyle = P[ch] || '#000';
-        ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
-      }
-    }
+  function body(k) { const kk = key(k); if (!imgs[kk]) { imgs[kk] = new Image(); imgs[kk].src = `assets/trainers/bodies/${kk}.png`; } return imgs[kk]; }
+  // Dibuja con el pie en (x, y) [centro abajo]; step 0 = quieto
+  function drawBody(ctx, x, y, k, dir = 'down', step = 0, scale = 1, onload) {
+    const im = body(k);
+    if (!im.complete || !im.naturalWidth) { if (onload) im.onload = onload; return false; }
+    const f = FR[dir] || FR.down, fi = step ? f[1 + (step % 2)] : f[0];
+    const w = CW * scale, h = CH * scale;
+    if (dir === 'right') {
+      ctx.save(); ctx.translate(Math.round(x + w / 2), Math.round(y - h)); ctx.scale(-1, 1);
+      ctx.drawImage(im, fi * CW, 0, CW, CH, 0, 0, w, h); ctx.restore();
+    } else ctx.drawImage(im, fi * CW, 0, CW, CH, Math.round(x - w / 2), Math.round(y - h), w, h);
+    return true;
   }
-  const cache = {};
-  function url(key, size = 96) {
-    const id = key + ':' + size;
-    if (cache[id]) return cache[id];
-    const cv = document.createElement('canvas'); cv.width = cv.height = size;
-    draw(cv.getContext('2d'), 0, 0, size / 16, key);
-    return (cache[id] = cv.toDataURL());
+  // Retrato (para la barra superior, el selector y las presentaciones de combate)
+  const url = k => `assets/trainers/portraits/${key(k)}.png`;
+  // cuerpo de frente recortado (para mostrarlo en <img>, p. ej. al empezar un combate)
+  const stand = {};
+  function standUrl(k) {
+    const kk = key(k); if (stand[kk]) return stand[kk];
+    const im = body(kk);
+    if (!im.complete || !im.naturalWidth) return url(kk);
+    const c = document.createElement('canvas'); c.width = CW; c.height = CH;
+    c.getContext('2d').drawImage(im, 0, 0, CW, CH, 0, 0, CW, CH);
+    return (stand[kk] = c.toDataURL());
   }
-  return {draw, url, count: PALETTES.length};
+  KEYS.forEach(body);   // precarga
+  const bodyUrl = k => `assets/trainers/bodies/${key(k)}.png`;
+  // compatibilidad con el dibujo anterior (16x16 => cuerpo a escala)
+  function draw(ctx, x, y, scale, k, frame = 0) { return drawBody(ctx, x + 8 * scale, y + 16 * scale, k, 'down', frame ? 1 : 0, scale / 2); }
+  return {KEYS, NAMES, key, drawBody, draw, url, bodyUrl, standUrl, count: KEYS.length};
 })();
